@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 from collections.abc import Iterator, Sequence
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -127,13 +128,37 @@ def test_the_tape_is_readable_without_the_library(tmp_path: Path) -> None:
     assert lines[-1]["kind"] == "run_end"
 
 
-def test_no_timestamps_anywhere(tmp_path: Path) -> None:
-    """ADR-0015. A single wall-clock value would make byte-identity meaningless."""
+def test_the_format_carries_no_wall_clock_values(tmp_path: Path) -> None:
+    """ADR-0015. A single wall-clock value would make byte-identity meaningless.
+
+    Checks *structure*, not raw text. An earlier version grepped the whole file and
+    failed on the word "timestamp" inside pytest's own tmp_path, which had landed on
+    the tape via a FileNotFoundError message. What a tool happens to print is not the
+    format's business; what the format itself records is.
+    """
+    import re
+
     tape = tmp_path / "tapes" / "run.jsonl"
     _agent(tmp_path, tape, ScriptedClient(_script())).run("go")
-    text = tape.read_text(encoding="utf-8").lower()
-    for banned in ("timestamp", "created_at", "elapsed", "duration", "2026-"):
-        assert banned not in text, f"found {banned!r} in the tape"
+
+    banned_keys = {"ts", "time", "timestamp", "created_at", "started_at", "elapsed", "duration"}
+    iso = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+
+    def walk(node: object, path: str) -> None:
+        if isinstance(node, dict):
+            for key, value in cast(dict[str, object], node).items():
+                assert key not in banned_keys, f"{path}.{key} is a wall-clock field"
+                # `content` is whatever a tool printed -- arbitrary, and not ours.
+                if key != "content":
+                    walk(value, f"{path}.{key}")
+        elif isinstance(node, list):
+            for i, item in enumerate(cast(list[object], node)):
+                walk(item, f"{path}[{i}]")
+        elif isinstance(node, str):
+            assert not iso.search(node), f"{path} looks like a timestamp: {node!r}"
+
+    for record in read_records(tape):
+        walk(record, record["kind"])
 
 
 def test_recording_into_the_workspace_changes_the_run(tmp_path: Path) -> None:

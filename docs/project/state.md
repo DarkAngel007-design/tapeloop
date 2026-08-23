@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-23 · **Milestone:** M4 next · **Remote:** `DarkAngel007-design/tapeloop` (private)
+**Updated:** 2026-08-24 · **Milestone:** M5 next · **Remote:** `DarkAngel007-design/tapeloop` (private)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -12,7 +12,8 @@
 | M1 — registry, effects, four seams | ✅ shipped | 27 tests, 0 hand-written schemas, Anthropic adapter type-checks |
 | M2 — streaming, interrupts, retries | ✅ shipped | `test_the_ship_criterion`: two forced 429s *and* a mid-stream cancel in one run |
 | M3 — the tape | ✅ shipped | 100% cache hit and byte-identical tapes on re-run |
-| **M4 — replay, fork, diff** | ⬜ **next** | the demo that goes at the top of the README |
+| M4 — replay, fork, diff | ✅ shipped | fork at step 12 replays the prefix in <1s; CLI works |
+| **M5 — sandbox, permissions, resume** | ⬜ **next** | the layer most portfolios skip |
 
 ## Confirm the working state
 
@@ -24,28 +25,28 @@ git config core.hooksPath .githooks   # required after a fresh clone
 **After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
 pre-commit secret guard in `.githooks/` is inert until you do.
 
-Expected as of this writing: **64 passed**, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **72 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
-## M4 — what "done" means
+## M5 — what "done" means
 
-**Ship criterion:** editing the system prompt and forking at step 12 replays 0–11 in under a second.
+**Ship criterion:** a repo file that tries to instruct the agent is refused, and it is a test.
 
-Everything M4 needs now exists: the tape records step keys, and `StepCache` turns a key into a
-response. What is missing is the operations on top and a way to invoke them.
+1. **`DockerExecutor`** behind the `Executor` seam that has been in place since M1 — so this adds
+   a backend rather than rewriting call sites. Read-only mounts outside the workspace, an egress
+   allowlist, no credentials inside.
+2. **Permission rules** per tool *and per argument*: `Bash(git status)` is not `Bash(*)`.
+3. **Prompt-injection defence** — the instruction/data boundary. Tool output is data, never
+   commands, regardless of how authoritative it sounds. The hostile-README test is the gate.
+4. **Workspace snapshotting**, which is what makes `resume` possible as distinct from `replay`
+   (ADR-0006) and upgrades a `simulated` fork to `faithful` (ADR-0016).
+5. `SECURITY.md` — it deliberately does not exist yet, because until now there was nothing
+   truthful to put in it.
 
-1. `replay(tape)` — re-run from cache, reporting where it diverged and why.
-2. `fork(tape, at=n)` — a new run sharing history to step *n*, then live. Cross-provider forks
-   must **visibly drop** opaque payloads (ADR-0011), never silently.
-3. `diff(a, b)` — step-by-step comparison, anchored at the first divergent key.
-4. A CLI (`typer`) — this is the first milestone with a user-facing surface, and the README's
-   headline demo depends on it existing.
-5. An asciinema recording of fork-and-replay for the README.
-
-**Design question to settle first:** what does `fork` do about tool *effects*? Replaying a cached
-`write` means the workspace is not in the state the forked history implies (ADR-0006). Does fork
-refuse without a snapshot, warn, or replay in simulation by default? This is the practical edge
-of the replay/resume distinction and deserves an ADR before code.
+**Design question to settle first:** what is the permission model's storage? Per-project config,
+per-session memory, or both — and does an approval persist across runs? Getting this wrong makes
+the tool either annoying or unsafe, and it is much cheaper to decide before the sandbox is wired
+in than after.
 
 ## Environment facts that cost time to rediscover
 
@@ -88,6 +89,9 @@ of the replay/resume distinction and deserves an ADR before code.
 
 ## Next action
 
-Start M4. Write the fork-and-effects ADR first (see above), then `replay` / `fork` / `diff`, then
-the CLI, then re-record the README demo. M4 is also the point agreed for flipping the repo from
-private to public — the headline demo will finally be real.
+Start M5: write the permission-storage ADR, then `DockerExecutor`, then permission rules, then the
+hostile-README test, then snapshotting, then `SECURITY.md`.
+
+**Also pending:** the repo is still private. M4 was the agreed point to flip it public, and the
+headline demo now works. That is a one-line change (`gh repo edit --visibility public`) and the
+author's call.

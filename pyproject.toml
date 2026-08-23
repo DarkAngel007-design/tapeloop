@@ -18,6 +18,9 @@ dependencies = [
   "python-dotenv>=1.2.3",
 ]
 
+[project.scripts]
+tapeloop = "tapeloop.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/DarkAngel007-design/tapeloop"
 Documentation = "https://DarkAngel007-design.github.io/tapeloop"
@@ -66,6 +69,8 @@ reportUnusedFunction = false
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# tests/ is on sys.path so shared doubles import as `helpers`, not `tests.helpers`
+pythonpath = ["tests"]
 addopts = "-q --strict-markers"
 markers = [
   "live: hits a real model API; costs money; deselected by default",

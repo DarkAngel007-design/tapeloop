@@ -6,6 +6,18 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 ## [Unreleased]
 
 ### Added
+- **`replay/`** — `Recording` reads a tape back (it is self-describing, so no configuration is
+  needed beyond a path), `plan_fork` branches at a step, `diff_tapes` compares two runs anchored
+  on step keys.
+- **Fork soundness** (ADR-0016) — a fork classifies itself `faithful` or `simulated` from the
+  effect classes in the prefix it replayed, names the specific writes, and records the tier on
+  the new tape. `--require-faithful` turns `simulated` into a refusal.
+- **CLI** — `tapeloop run | show | fork | diff`, built on stdlib `argparse` rather than a CLI
+  framework, keeping the dependency list at two.
+- `message` records on the tape, so history is reconstructable. Previously `tool_result` records
+  carried only the tool name and effect, not the content, which fork needs.
+
+### Added
 - **The tape** (`record/jsonl.py`) — append-only JSONL behind the existing `TranscriptStore`
   seam, with a versioned header. An unknown format version refuses to open rather than
   best-effort parsing.

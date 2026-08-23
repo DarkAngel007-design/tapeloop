@@ -33,7 +33,7 @@ from tapeloop.providers.base import ModelClient
 from tapeloop.providers.stream import StreamEnd, StreamEvent, TextDelta
 from tapeloop.record.base import Event, InMemoryStore, TranscriptStore
 from tapeloop.record.cache import StepCache
-from tapeloop.record.codec import encode_response
+from tapeloop.record.codec import encode_message, encode_response
 from tapeloop.record.keys import step_key
 from tapeloop.tools.registry import Registry
 
@@ -111,6 +111,9 @@ class Agent:
             )
         )
 
+        for message in messages:
+            self.store.append(Event(kind="message", step=0, payload=encode_message(message)))
+
         for step in range(self.max_steps):
             if token and token.cancelled:
                 cancelled = True
@@ -175,7 +178,15 @@ class Agent:
                         },
                     )
                 )
-            messages.append(results(*batch))
+            batch_message = results(*batch)
+            messages.append(batch_message)
+            self.store.append(
+                Event(
+                    kind="message",
+                    step=step,
+                    payload=encode_message(batch_message, calls=response.message.tool_calls),
+                )
+            )
         else:
             stop = StopReason.OTHER
 

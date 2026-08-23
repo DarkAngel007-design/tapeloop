@@ -2,11 +2,9 @@
 
 **An agent runtime that records every step, so any run can be replayed, forked, and diffed.**
 
-> ⚠️ **Status: pre-alpha, M2 of M9.** Built so far: the agent loop, a tool registry, four
-> swappable seams, streaming, cancellation and retries. **The tape itself does not exist yet** —
-> the `replay` / `fork` / `diff` commands below describe the design, not shipped behaviour.
-> They land at M3–M4. There is no public API and no CLI yet.
-> See [ROADMAP.md](ROADMAP.md) for what is built and what isn't.
+> **Status: pre-alpha, M4 of M9.** `run`, `show`, `fork` and `diff` work. Not yet built: the
+> sandbox (M5), evals (M6), context management (M7), MCP (M8), and the trace viewer (M9).
+> There is no stable API — anything may move.
 
 ---
 
@@ -23,29 +21,59 @@ debugger — breakpoints, stepping, replay. Agents don't have one.
 
 ## The idea
 
-tapeloop writes every step of a run to an append-only **tape**. Because the tape is a complete,
-provider-neutral record, you can:
+tapeloop writes every step of a run to an append-only **tape**, and keys each step by its
+content. Re-running unchanged is served entirely from the tape. Change something and only the
+steps *after* the change have new keys — everything before still hits.
 
 ```bash
-tapeloop run "refactor the auth module"      # records as you go
-tapeloop replay run_8f2                      # deterministic, from cache
-tapeloop fork   run_8f2 --at 12              # branch at step 12, edit, continue
-tapeloop diff   run_8f2 run_a41              # what actually changed
+tapeloop run  "refactor the auth module"     # records a tape
+tapeloop show .tapeloop/run-001.jsonl        # what happened, step by step
+tapeloop fork .tapeloop/run-001.jsonl "refactor the auth module"          --at 12 --system "Be terse."        # branch at step 12, new prompt
+tapeloop diff run-001.jsonl fork-run-001-at12.jsonl
 ```
 
-Editing your prompt and forking at step 12 replays steps 0–11 from the tape in milliseconds.
-Only step 12 onward costs anything.
+`fork` replays steps 0–11 from the tape in milliseconds. Only step 12 onward costs anything.
 
-Because the tape stores canonical events rather than one vendor's wire format, you can also
-branch a run **onto a different model**:
+```
+$ tapeloop show .tapeloop/run-001.jsonl
+run-001.jsonl: openai/gpt-4o-mini  4 steps
+  tools: read_file, write_file, list_files, run_command
+    0  b88630a51f94  list_files
+    1  1c1ab81d7901  read_file
+    2  43a5790c1259  write_file
+    3  36e533199f1e  Renamed the handler and updated its two callers.
+  1 write(s) — forking past them yields a simulated run
+```
+
+### Fork tells you whether it can be trusted
+
+Replaying a cached *write* means the workspace is not in the state the history claims. So a fork
+classifies itself from the effect classes it replayed, and says which case it is in:
+
+```
+$ tapeloop fork run-001.jsonl "..." --at 3
+fork run-001.jsonl @ step 3 — simulated
+  1 write(s) replayed from cache; the workspace does not match this history.
+    step 2: write_file
+  Live steps will run against the real workspace. See ADR-0006.
+```
+
+A read-only prefix reports `faithful` and proceeds silently. `--require-faithful` turns
+`simulated` into a refusal — evals use it, because a silently simulated run poisons a results
+table.
+
+### Fork across providers
+
+Because the tape stores canonical events rather than one vendor's wire format, a run recorded on
+one model can be branched onto another with identical history — the comparison you actually want
+when choosing a model, and normally impossible.
 
 ```bash
-tapeloop fork run_8f2 --at 12 --model claude-opus-5
+tapeloop fork run-001.jsonl "..." --at 12 --model claude-opus-5
 ```
 
-Same history, different model, from the exact step where it went wrong. That is the comparison
-you actually want when choosing a model, and it is normally impossible because your history is
-locked inside one provider's message format.
+Payloads meaningful only to the original provider are dropped, and the fork says so rather than
+doing it quietly.
 
 ## Design
 
@@ -69,18 +97,30 @@ Full reasoning lives in [`docs/adr/`](docs/adr/).
 Not an agent framework — no chains, no retriever abstractions, no prompt-template DSL. Not a
 hosted service. Not a prompt-management product. A short dependency list is a stated feature.
 
-## Running M0
-
-M0 is a single unabstracted file. It exists so the protocol is visible before anything hides it.
+## Install and run
 
 ```bash
 uv sync
-cp .env.example .env    # add your key
-uv run python m0/loop.py "count the python files here and write the number to count.txt"
+cp .env.example .env      # add your key
+git config core.hooksPath .githooks   # enables the secret guard; git will not do this for you
+uv run tapeloop run "count the python files here and write the number to count.txt"
 ```
 
 Works against any OpenAI-compatible endpoint — OpenAI, Groq, Together, OpenRouter, vLLM, or a
 local Ollama. Set `OPENAI_BASE_URL` to point elsewhere.
+
+**Tapes must live outside the workspace the agent can see.** A tape inside it becomes something
+the agent observes, so a directory listing differs on the second run and replay misses for no
+visible reason. The default `--tapes .tapeloop` is fine as long as the agent has no reason to
+list it.
+
+There is no sandbox until M5. Do not point this at untrusted input.
+
+### M0, the teaching spike
+
+`m0/loop.py` is the original single-file version, kept deliberately unabstracted so the protocol
+is visible before anything hides it. `m0/README.md` lists exactly which parts are bad on purpose
+and which milestone replaced each one.
 
 ## License
 

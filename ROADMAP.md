@@ -36,9 +36,11 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       *Shipped 2026-08-23: `test_ship_criterion_replay_is_a_total_cache_hit_and_byte_identical`
       asserts hit_rate == 1.0 and `first.read_bytes() == second.read_bytes()`. 64 tests.*
 
-- [ ] **M4 — Replay, fork, diff** ◆
+- [x] **M4 — Replay, fork, diff** ◆
       The differentiator. This demo goes at the top of the README as an asciinema recording.
       **Ship when:** editing the system prompt and forking at step 12 replays 0–11 in <1s.
+      *Shipped 2026-08-24: `test_ship_criterion_fork_at_step_12_replays_the_prefix_in_under_a_second`.
+      Plus a zero-dependency CLI (`run` / `show` / `fork` / `diff`) and ADR-0016. 72 tests.*
 
 - [ ] **M5 — Sandbox, permissions, resume**
       Docker executor, permission rules per tool and argument, workspace snapshotting — which
