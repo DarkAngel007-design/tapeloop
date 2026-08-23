@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-23 · **Milestone:** M3 next · **Remote:** `DarkAngel007-design/tapeloop` (private)
+**Updated:** 2026-08-23 · **Milestone:** M4 next · **Remote:** `DarkAngel007-design/tapeloop` (private)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -11,7 +11,8 @@
 | M0 — bare loop | ✅ shipped | 137 code lines (enforced by test), two-tool task verified against a fake client *and* live |
 | M1 — registry, effects, four seams | ✅ shipped | 27 tests, 0 hand-written schemas, Anthropic adapter type-checks |
 | M2 — streaming, interrupts, retries | ✅ shipped | `test_the_ship_criterion`: two forced 429s *and* a mid-stream cancel in one run |
-| **M3 — the tape** | ⬜ **next** | the differentiator begins here |
+| M3 — the tape | ✅ shipped | 100% cache hit and byte-identical tapes on re-run |
+| **M4 — replay, fork, diff** | ⬜ **next** | the demo that goes at the top of the README |
 
 ## Confirm the working state
 
@@ -23,29 +24,28 @@ git config core.hooksPath .githooks   # required after a fresh clone
 **After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
 pre-commit secret guard in `.githooks/` is inert until you do.
 
-Expected as of this writing: **44 passed**, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **64 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
-## M3 — what "done" means
+## M4 — what "done" means
 
-**Ship criterion:** re-running an unchanged agent is a 100% cache hit, byte-identical.
+**Ship criterion:** editing the system prompt and forking at step 12 replays 0–11 in under a second.
 
-This is where the project earns its name. Four pieces:
+Everything M4 needs now exists: the tape records step keys, and `StepCache` turns a key into a
+response. What is missing is the operations on top and a way to invoke them.
 
-1. **Append-only JSONL transcript** with a `format_version` on the first line (ADR-0010).
-   Replaces `InMemoryStore` behind the existing `TranscriptStore` seam — the loop should not
-   change.
-2. **Canonical serialization.** Sorted keys, stable separators, an explicit float format, and a
-   decided ordering for a parallel tool-result set. Getting any of these wrong produces a false
-   cache miss, which presents as "replay is broken" and is miserable to debug. Write the test
-   before the implementation.
-3. **Content-addressed step keys** — `sha256(provider, model, params, canonical(tool_schemas),
-   canonical(events[0..n]))`. Explicitly excludes timestamps and run ids (ADR-0004).
-4. **The determinism lint rule** and a replay-equivalence test, so Contract 1 is enforced by CI
-   rather than by discipline.
+1. `replay(tape)` — re-run from cache, reporting where it diverged and why.
+2. `fork(tape, at=n)` — a new run sharing history to step *n*, then live. Cross-provider forks
+   must **visibly drop** opaque payloads (ADR-0011), never silently.
+3. `diff(a, b)` — step-by-step comparison, anchored at the first divergent key.
+4. A CLI (`typer`) — this is the first milestone with a user-facing surface, and the README's
+   headline demo depends on it existing.
+5. An asciinema recording of fork-and-replay for the README.
 
-Write `docs/reference/transcript-format.md` as part of this milestone, not after. The moment a
-tape exists on someone's disk, that document is a compatibility promise.
+**Design question to settle first:** what does `fork` do about tool *effects*? Replaying a cached
+`write` means the workspace is not in the state the forked history implies (ADR-0006). Does fork
+refuse without a snapshot, warn, or replay in simulation by default? This is the practical edge
+of the replay/resume distinction and deserves an ADR before code.
 
 ## Environment facts that cost time to rediscover
 
@@ -71,6 +71,9 @@ tape exists on someone's disk, that document is a compatibility promise.
   `.githooks/pre-commit` guard now blocks key-shaped strings from being staged.
 - **Do not use blanket `git add -A` without reading `git status` first.** That is what caused
   the above.
+- **Never write a tape inside the agent's workspace.** The tape becomes something the agent
+  observes, so `list_files` differs on the second run, the step key diverges, and replay misses
+  for no visible reason. Recording must not change what is recorded.
 - **Settings read at import time will not see `.env`** unless `load_dotenv()` runs first, at
   module level. The failure mode is silent: the wrong model, no error.
 - **`get_type_hints` cannot resolve a type declared inside a function** without `localns`. Tool
@@ -85,16 +88,6 @@ tape exists on someone's disk, that document is a compatibility promise.
 
 ## Next action
 
-Start M3, in this order:
-
-1. `docs/reference/transcript-format.md` — write the spec first. It is a compatibility promise.
-2. Canonical serialization plus its tests, before anything depends on it.
-3. `record/jsonl.py` — a `TranscriptStore` writing versioned append-only JSONL.
-4. Step keys, and the cache-hit test that is the ship criterion.
-5. The determinism lint rule (no wall-clock, no unseeded randomness, no unordered iteration
-   reaching a prompt or a key) and a replay-equivalence test.
-
-**Open design question to settle first:** what is the canonical ordering of a parallel
-tool-result set? Arrival order is not stable across providers. Sorting by `call_id` is stable but
-discards the order the model asked in. Decide, and write the ADR before implementing — this is
-exactly the kind of thing that is cheap now and a migration later.
+Start M4. Write the fork-and-effects ADR first (see above), then `replay` / `fork` / `diff`, then
+the CLI, then re-record the README demo. M4 is also the point agreed for flipping the repo from
+private to public — the headline demo will finally be real.

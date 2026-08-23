@@ -32,6 +32,9 @@ from tapeloop.events import (
 from tapeloop.providers.base import ModelClient
 from tapeloop.providers.stream import StreamEnd, StreamEvent, TextDelta
 from tapeloop.record.base import Event, InMemoryStore, TranscriptStore
+from tapeloop.record.cache import StepCache
+from tapeloop.record.codec import encode_response
+from tapeloop.record.keys import step_key
 from tapeloop.tools.registry import Registry
 
 DEFAULT_SYSTEM = (
@@ -71,6 +74,8 @@ class Agent:
     max_steps: int = 12
     max_tokens: int = 4096
     retry: RetryPolicy = field(default_factory=RetryPolicy)
+    cache: StepCache | None = None
+    """A previous run's responses, indexed by step key. Turns replay into a lookup."""
 
     def run(
         self,
@@ -110,15 +115,26 @@ class Agent:
             if token and token.cancelled:
                 cancelled = True
                 break
-            try:
-                response = self.retry.call(
-                    lambda: self._one_turn(messages, on_delta=on_delta, token=token),
-                    token=token,
-                )
-            except Cancelled:
-                # Nothing is appended: the in-flight turn is discarded whole.
-                cancelled = True
-                break
+            key = step_key(
+                provider=self.client.provider_id,
+                model=self.model,
+                params={"max_tokens": self.max_tokens, "streaming": on_delta is not None},
+                tools=self.registry.specs(),
+                messages=messages,
+            )
+            cached = self.cache.get(key) if self.cache else None
+            if cached is not None:
+                response = cached
+            else:
+                try:
+                    response = self.retry.call(
+                        lambda: self._one_turn(messages, on_delta=on_delta, token=token),
+                        token=token,
+                    )
+                except Cancelled:
+                    # Nothing is appended: the in-flight turn is discarded whole.
+                    cancelled = True
+                    break
 
             totals = Usage(
                 input_tokens=totals.input_tokens + response.usage.input_tokens,
@@ -130,14 +146,9 @@ class Agent:
 
             self.store.append(
                 Event(
-                    kind="model_response",
+                    kind="step",
                     step=step,
-                    payload={
-                        "stop_reason": stop.value,
-                        "tool_calls": [c.name for c in response.message.tool_calls],
-                        "input_tokens": response.usage.input_tokens,
-                        "output_tokens": response.usage.output_tokens,
-                    },
+                    payload={"key": key, **encode_response(response)},
                 )
             )
 

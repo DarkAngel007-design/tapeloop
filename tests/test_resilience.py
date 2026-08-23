@@ -171,8 +171,8 @@ def test_cancel_mid_stream_leaves_no_partial_turn(tmp_path: Path) -> None:
     assert result.text is None, "the partial turn must not be recorded"
     assert not [m for m in result.messages if m.role is Role.ASSISTANT]
     assert "cancelled" in [e.kind for e in store.events()]
-    # The record ends cleanly: no model_response for the abandoned turn.
-    assert "model_response" not in [e.kind for e in store.events()]
+    # The record ends cleanly: no `step` record for the abandoned turn.
+    assert "step" not in [e.kind for e in store.events()]
 
 
 def test_the_ship_criterion(tmp_path: Path) -> None:
@@ -208,7 +208,7 @@ def test_the_ship_criterion(tmp_path: Path) -> None:
     assert kinds[0] == "run_start"
     assert kinds[-1] == "run_end"
     assert "cancelled" in kinds
-    assert "model_response" not in kinds, "no turn was completed, so none is recorded"
+    assert "step" not in kinds, "no turn was completed, so none is recorded"
 
 
 def test_a_cancelled_backoff_wakes_immediately() -> None:

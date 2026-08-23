@@ -29,10 +29,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       *Shipped 2026-08-23: `test_the_ship_criterion` does exactly that. 44 tests, zero API
       spend, pyright strict clean.*
 
-- [ ] **M3 — The tape** ◆
+- [x] **M3 — The tape** ◆
       Append-only JSONL with a versioned schema. Canonical serialization. Content-addressed
       step keys. The determinism lint rule and the replay-equivalence test.
       **Ship when:** re-running an unchanged agent is a 100% cache hit, byte-identical.
+      *Shipped 2026-08-23: `test_ship_criterion_replay_is_a_total_cache_hit_and_byte_identical`
+      asserts hit_rate == 1.0 and `first.read_bytes() == second.read_bytes()`. 64 tests.*
 
 - [ ] **M4 — Replay, fork, diff** ◆
       The differentiator. This demo goes at the top of the README as an asciinema recording.

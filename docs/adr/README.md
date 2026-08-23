@@ -21,3 +21,5 @@ Format: Context (the forces) → Decision (what we chose) → Consequences (what
 | [0011](0011-canonical-event-log.md) | Canonical event log, with opaque provider payloads | Accepted |
 | [0012](0012-chat-completions-over-responses.md) | Chat Completions over the Responses API | Accepted |
 | [0013](0013-hand-rolled-schema-generation.md) | Hand-rolled schema generation instead of pydantic | Accepted |
+| [0014](0014-tool-result-ordering.md) | Tool results are ordered by their calls, not by arrival | Accepted |
+| [0015](0015-tapes-contain-no-timestamps.md) | The tape contains no timestamps | Accepted |

@@ -6,6 +6,21 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 ## [Unreleased]
 
 ### Added
+- **The tape** (`record/jsonl.py`) — append-only JSONL behind the existing `TranscriptStore`
+  seam, with a versioned header. An unknown format version refuses to open rather than
+  best-effort parsing.
+- **Canonical serialization** (`record/canonical.py`) — sorted keys, compact separators, NFC
+  normalization, NaN/Infinity rejected. Non-ASCII stays literal so tapes remain greppable.
+- **Content-addressed step keys** (`record/keys.py`) with the prefix property: change a prompt
+  and only the steps after it miss.
+- **Step cache** (`record/cache.py`) — a previous run indexed by key, with hit-rate stats.
+  `Agent` consults it before spending anything.
+- **`docs/reference/transcript-format.md`** — the normative spec, written before the code.
+- **Determinism lint** — an AST scan of `src/` for wall-clock reads and unseeded randomness,
+  run as a test so Contract 1 is enforced by CI rather than by discipline.
+- ADR-0014 (tool results ordered by their calls), ADR-0015 (tapes contain no timestamps).
+
+### Added
 - **Streaming** (`providers/stream.py`) — `TextDelta`, `ToolCallDelta`, `StreamEnd`, and a
   `ToolCallAccumulator` that reassembles tool arguments arriving as JSON fragments split at
   arbitrary points across chunks and interleaved by call index.
