@@ -209,3 +209,58 @@ def test_diff_of_a_tape_with_itself_is_identical(tmp_path: Path) -> None:
     assert report.identical
     assert all(s.status is StepStatus.SAME for s in report.steps)
     assert "identical" in report.render()
+
+
+def test_a_snapshot_upgrades_a_simulated_fork_to_faithful(tmp_path: Path) -> None:
+    """ADR-0016 promised M5's snapshotting would upgrade a tier, not change an interface.
+
+    Same call, same report shape, one field more — the fork stops being a simulation
+    because the workspace has been put back the way it was.
+    """
+    from tapeloop.sandbox.snapshot import SnapshotStore
+
+    ws = workspace_of(tmp_path)
+    tapes = tmp_path / "tapes"
+    tapes.mkdir(parents=True)
+    tape = tapes / "run.jsonl"
+    snapshots = SnapshotStore(tmp_path / "snapshots")
+
+    script = [
+        ModelResponse(
+            message=Message(
+                role=Role.ASSISTANT,
+                tool_calls=(
+                    ToolCall(
+                        id="w1", name="write_file", arguments={"path": "made.txt", "content": "v1"}
+                    ),
+                ),
+            ),
+            stop_reason=StopReason.TOOL_USE,
+        ),
+        ModelResponse(
+            message=Message(role=Role.ASSISTANT, text="written"), stop_reason=StopReason.END_TURN
+        ),
+    ]
+    agent = _agent(tmp_path, tape, ScriptedClient(script))
+    agent.snapshots = snapshots
+    agent.workspace = ws
+    agent.run("write a file")
+
+    assert (ws / "made.txt").exists(), "the run really did write it"
+
+    # Without snapshots the same fork is a simulation.
+    assert plan_fork(tape, at=1).soundness is Soundness.SIMULATED
+
+    # Something else changes the workspace afterwards, as real work does.
+    (ws / "made.txt").write_text("clobbered later", encoding="utf-8")
+    (ws / "stray.txt").write_text("junk", encoding="utf-8")
+
+    # Forking AT step 1 means replaying step 0, so the world must look the way it did
+    # *entering* step 1 -- which includes step 0's write. That is what makes the
+    # replayed write real rather than simulated.
+    plan = plan_fork(tape, at=1, snapshots=snapshots, workspace=ws)
+    assert plan.soundness is Soundness.FAITHFUL
+    assert plan.restored_from == 1
+    assert "restored from snapshot" in plan.report()
+    assert (ws / "made.txt").read_text(encoding="utf-8") == "v1", "the replayed write is real"
+    assert not (ws / "stray.txt").exists(), "and later changes are gone"

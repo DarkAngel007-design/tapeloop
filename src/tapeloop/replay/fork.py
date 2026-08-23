@@ -16,6 +16,7 @@ from pathlib import Path
 from tapeloop.events import Message
 from tapeloop.record.cache import StepCache
 from tapeloop.replay.recording import RecordedTool, Recording
+from tapeloop.sandbox.snapshot import SnapshotStore
 
 
 class Soundness(StrEnum):
@@ -41,10 +42,17 @@ class ForkPlan:
     dropped_opaque: int = 0
     provider: str = ""
     model: str = ""
+    restored_from: int | None = None
+    """The snapshot step restored, when one made this fork faithful."""
 
     def report(self) -> str:
         """What the user needs to know before trusting the result."""
         lines = [f"fork {self.source.name} @ step {self.at} — {self.soundness.value}"]
+        if self.restored_from is not None:
+            lines.append(
+                f"  workspace restored from snapshot at step {self.restored_from};"
+                " the replayed writes are real, not simulated."
+            )
         if self.soundness is Soundness.SIMULATED:
             lines.append(
                 f"  {len(self.replayed_writes)} write(s) replayed from cache; the workspace"
@@ -69,6 +77,8 @@ def plan_fork(
     model: str | None = None,
     system: str | None = None,
     require_faithful: bool = False,
+    snapshots: SnapshotStore | None = None,
+    workspace: Path | None = None,
 ) -> ForkPlan:
     """Build a fork without running anything.
 
@@ -110,6 +120,16 @@ def plan_fork(
 
     writes = recording.writes_before(at)
     soundness = Soundness.SIMULATED if writes else Soundness.FAITHFUL
+    restored: int | None = None
+    if writes and snapshots is not None and workspace is not None:
+        # ADR-0016 said M5's snapshotting would upgrade a tier rather than change an
+        # interface. This is that upgrade: restore the world as it stood entering the
+        # fork step, and the replayed writes are no longer a simulation.
+        at_step = snapshots.latest_before(at)
+        if at_step is not None:
+            snapshots.restore(workspace, step=at_step)
+            restored = at_step
+            soundness = Soundness.FAITHFUL
 
     plan = ForkPlan(
         source=tape,
@@ -123,6 +143,7 @@ def plan_fork(
         dropped_opaque=dropped,
         provider=target_provider,
         model=model or recording.model,
+        restored_from=restored,
     )
     if require_faithful and soundness is Soundness.SIMULATED:
         raise UnsoundFork(plan.report())

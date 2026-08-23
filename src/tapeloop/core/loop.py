@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from tapeloop.context.budget import ContextBudget
 from tapeloop.context.compact import (
@@ -43,6 +44,7 @@ from tapeloop.record.cache import StepCache
 from tapeloop.record.codec import encode_message, encode_response
 from tapeloop.record.keys import step_key
 from tapeloop.sandbox.permissions import PermissionPolicy
+from tapeloop.sandbox.snapshot import SnapshotStore
 from tapeloop.tools.effects import Effect
 from tapeloop.tools.registry import Registry
 
@@ -85,6 +87,9 @@ class Agent:
     retry: RetryPolicy = field(default_factory=RetryPolicy)
     budget: ContextBudget | None = None
     """Truncates oversized tool results and compacts near the ceiling. None = neither."""
+    snapshots: SnapshotStore | None = None
+    """When set with a workspace, a copy is kept per step so `resume` can restore one."""
+    workspace: Path | None = None
     policy: PermissionPolicy | None = None
     """Gates every tool call. None means the old behaviour: everything runs."""
     cache: StepCache | None = None
@@ -128,6 +133,13 @@ class Agent:
             self.store.append(Event(kind="message", step=0, payload=encode_message(message)))
 
         for step in range(self.max_steps):
+            if self.snapshots is not None and self.workspace is not None:
+                # Taken *before* the step, so restoring step n reproduces the world
+                # the model saw when it decided what to do at step n.
+                taken = self.snapshots.take(self.workspace, step=step)
+                self.store.append(
+                    Event(kind="snapshot", step=step, payload={"path": taken.path.name})
+                )
             if token and token.cancelled:
                 cancelled = True
                 break

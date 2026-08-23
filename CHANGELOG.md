@@ -6,6 +6,21 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 ## [Unreleased]
 
 ### Added
+- **Trace viewer** — `tapeloop view <tape>` writes one self-contained HTML file. No server, no
+  collector, no external asset: a trace you can only read by running something is a trace you
+  cannot attach to a bug report. Renders subagents as a **tree**, walking child tapes (ADR-0021).
+- **Cost accounting** (`observe/cost.py`) — prices are data in `prices.toml`, not code. A model
+  with no entry renders as `—`, never as zero, because a cost figure that is quietly wrong is
+  worse than one that is visibly absent. Cached input is billed at its own rate when given.
+- **OpenTelemetry export** — optional, and built *from the tape* rather than instrumented into the
+  loop, so a run recorded last week can be traced today and there is only one source of truth.
+- **Dockerfile** — runs the CLI as an unprivileged user. Deliberately unremarkable: the charter
+  says this is not a hosted service.
+- **Snapshots wired in** — `Agent` takes a workspace snapshot before each step, and a fork with a
+  matching snapshot is restored and reported `faithful` instead of `simulated` (ADR-0016). This
+  clears the debt M5 deliberately left open.
+
+### Added
 - **Subagents** (`agents/subagent.py`) — isolated context, narrowed tool set, and a *structured*
   return, which is what makes them composable rather than merely recursive. Each child writes its
   own tape (ADR-0021), so `show` / `fork` / `diff` work on a subagent unchanged. A failed child

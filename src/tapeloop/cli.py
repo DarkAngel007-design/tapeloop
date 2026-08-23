@@ -198,6 +198,36 @@ def cmd_eval(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_view(args: argparse.Namespace) -> int:
+    from tapeloop.observe.cost import PriceTable
+    from tapeloop.observe.trace import build_trace, export_otel
+    from tapeloop.observe.viewer import write_viewer
+
+    tape = Path(args.tape)
+    prices = PriceTable.load(Path(args.prices) if args.prices else None)
+    summary = build_trace(tape, prices=prices)
+    out = write_viewer(tape, Path(args.out) if args.out else None, prices=prices)
+
+    print(f"{out}")
+    print(
+        f"  {summary.steps} steps, {len(summary.children)} subagent(s), "
+        f"{summary.total_input():,} in / {summary.total_output():,} out, cost {summary.cost}",
+        file=sys.stderr,
+    )
+    if summary.cost and not summary.cost.priced:
+        print(
+            f"  no price entry for {summary.model!r}; add one to prices.toml for a cost figure",
+            file=sys.stderr,
+        )
+    if args.otel:
+        n = export_otel(summary)
+        print(
+            f"  exported {n} spans" if n else "  opentelemetry not installed; nothing exported",
+            file=sys.stderr,
+        )
+    return 0
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     report = diff_tapes(Path(args.a), Path(args.b))
     print(report.render())
@@ -266,6 +296,13 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--only", help="run one task by id")
     ev.add_argument("--out", default="evals/latest", help="where workspaces, tapes and results go")
     ev.set_defaults(func=cmd_eval)
+
+    view = sub.add_parser("view", help="render a tape as a self-contained HTML trace")
+    view.add_argument("tape")
+    view.add_argument("--out", help="output path (default: alongside the tape)")
+    view.add_argument("--prices", help="price table (default: ./prices.toml)")
+    view.add_argument("--otel", action="store_true", help="also export OpenTelemetry spans")
+    view.set_defaults(func=cmd_view)
 
     diff = sub.add_parser("diff", help="compare two tapes step by step")
     diff.add_argument("a")

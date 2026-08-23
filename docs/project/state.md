@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-24 · **Milestone:** M9 — the last one · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
+**Updated:** 2026-08-24 · **Milestone:** roadmap complete · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -17,7 +17,7 @@
 | M6 — eval harness & baseline | ✅ shipped | 0.911 ± 0.268 deterministic, committed with the model id |
 | M7 — context management | ✅ shipped | no regression on 18 shared tasks; −95.6% tokens on the context task |
 | M8 — subagents & MCP | ✅ shipped | server verified against raw JSON-RPC from a foreign peer |
-| **M9 — viewer & observability** | ⬜ **next** | scope reduced 2026-08-24; see ROADMAP |
+| M9 — viewer & observability | ✅ shipped | self-contained HTML trace, tree of tapes, cost visible |
 
 ## Confirm the working state
 
@@ -29,31 +29,25 @@ git config core.hooksPath .githooks   # required after a fresh clone
 **After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
 pre-commit secret guard in `.githooks/` is inert until you do.
 
-Expected as of this writing: **125 passed**, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **133 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
-## M9 — what "done" means
+## The roadmap is finished. What is actually left
 
-**Ship criterion:** someone who is not the author runs a task and can open their trace, with
-per-step cost visible.
+All ten milestones shipped, all carried debt cleared. What remains is not a milestone list, it is
+the ordinary work of a pre-1.0 project:
 
-Scope was reduced on 2026-08-24 (see `ROADMAP.md`): worker pool, queue, autoscaling and per-user
-quotas are cut. What remains:
+1. **The Anthropic adapter.** Deliberately never a milestone. The day it passes the conformance
+   suite *unmodified* is the day the provider abstraction is proven rather than asserted. It needs
+   credits, and it is the single highest-value thing left.
+2. **Publish `0.1.0` to PyPI.** The name is unclaimed. The API is not stable and should not pretend
+   to be, but a claimed name and an installable package cost nothing.
+3. **Grow the eval suite.** 19 deterministic tasks is enough to catch a regression and not enough
+   for a confident absolute claim. Every new task needs the null-model check.
+4. **Fill in the failure taxonomy** as new modes appear. F11 and F12 came from one baseline run.
 
-1. **Containerise.** A Dockerfile that runs the CLI, nothing more elaborate.
-2. **OpenTelemetry spans**, one per step, carrying tokens and dollars. The token accounting M7
-   built is the input; do not build a second one.
-3. **The trace viewer.** A local web page over a tape. **It renders a tree**: a subagent has its
-   own tape (ADR-0021), so the viewer walks `subagent` records and renders each child with the
-   same code that renders the parent. That was the whole reason to settle ADR-0021 before M9.
-
-**What is already available to it:** step keys, per-step usage, effect classes, permission
-decisions, truncation and compaction records, and `subagent` / `parent` links. The tape has
-everything the viewer needs; M9 is presentation, not instrumentation.
-
-**Remaining carried debt** — worth clearing during M9 or declaring won't-fix:
-`SnapshotStore` is built and tested but nothing calls it. Wiring it into `resume` also upgrades a
-`simulated` fork to `faithful` (ADR-0016).
+**Do not start these by adding milestones.** The roadmap is complete; treating it as open-ended is
+how a finished project stops looking finished.
 
 ## Environment facts that cost time to rediscover
 
@@ -100,8 +94,13 @@ everything the viewer needs; M9 is presentation, not instrumentation.
 
 ## Next action
 
-Start M9 — the last milestone. Containerise, add OTel spans over M7's existing accounting, then
-build the viewer as a tree over tapes.
+Nothing is blocked. The highest-value next thing is the **Anthropic adapter** — it is the only
+outstanding claim in the charter's success criteria, and passing the conformance suite unmodified
+is what turns "provider-neutral" from a design intention into a demonstrated fact.
+
+Regression policy unchanged: re-run `uv run tapeloop eval --repeats 5` and compare **shared tasks
+only** against `evals/m7-2026-08-24/`. A move greater than one spread (0.261) is investigated
+before merging.
 
 Regression policy: re-run `uv run tapeloop eval --repeats 5` and compare against
 `evals/m7-2026-08-24/`. A move greater than one spread (0.261) is investigated before merging.

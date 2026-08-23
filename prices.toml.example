@@ -1,0 +1,14 @@
+# USD per million tokens. Copy to prices.toml.
+#
+# Not shipped populated on purpose: prices change, and a stale table produces a cost
+# figure that is confidently wrong. A model with no entry renders as "—" rather than
+# as zero, so an absent price is visible instead of silently free.
+#
+# [model-id]
+# input = 0.15
+# output = 0.60
+# cached_input = 0.075   # optional; falls back to `input` when absent
+
+["gpt-4o-mini"]
+input = 0.15
+output = 0.60

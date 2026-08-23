@@ -2,9 +2,10 @@
 
 **An agent runtime that records every step, so any run can be replayed, forked, and diffed.**
 
-> **Status: pre-alpha, M4 of M9.** `run`, `show`, `fork` and `diff` work. Not yet built: the
-> sandbox (M5), evals (M6), context management (M7), MCP (M8), and the trace viewer (M9).
-> There is no stable API — anything may move.
+> **Status: pre-alpha, M9 of M9 — the roadmap is complete.** `run`, `show`, `fork`, `diff`,
+> `eval` and `view` all work, with a sandbox, permissions, context management, subagents, MCP on
+> both ends, and a committed eval baseline. There is still **no stable API**: nothing is versioned
+> above `0.0.0` and anything may move.
 
 ---
 
@@ -93,6 +94,17 @@ The score is the least interesting part. The
 [failure taxonomy](docs/evals/failure-taxonomy.md) is where the work is — for instance, asked to
 compute an average from a column that does not exist, the model computed the average *salary*
 instead, wrote it to the requested file, and reported success with no hedge. Three times in five.
+
+## Seeing a run
+
+```bash
+tapeloop view .tapeloop/run-001.jsonl        # writes run-001.html beside the tape
+```
+
+One self-contained file — no server, no collector, no external request. Per-step tokens and cost,
+permission decisions, truncations and compactions, and subagent runs rendered as a tree. Costs come
+from a `prices.toml` you supply; a model with no entry shows `—` rather than a confidently wrong
+zero.
 
 ## Design
 

@@ -77,11 +77,17 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       workload, 0% on another, and the eval suite has no fan-out task so its delta is
       deliberately not claimed. 125 tests.*
 
-- [ ] **M9 — Viewer & observability** *(scope reduced 2026-08-24 — see below)*
+- [x] **M9 — Viewer & observability** *(scope reduced 2026-08-24 — see below)*
       Containerise, OpenTelemetry spans carrying per-step tokens and dollars, and a local web
       trace viewer. Nested runs from M8 render as a tree, not a list.
       **Ship when:** someone who is not the author runs a task and can open their trace, with
       per-step cost visible.
+      *Shipped 2026-08-24. `tapeloop view <tape>` writes a self-contained HTML trace — no server,
+      no collector, no external asset — rendering subagents as a tree by walking child tapes
+      (ADR-0021). Cost from a `prices.toml` you supply; an unpriced model renders as `—` rather
+      than as zero. Dockerfile runs the CLI unprivileged. OpenTelemetry export is optional and
+      built from the tape rather than instrumented into the loop, so a run recorded last week can
+      be traced today. 133 tests.*
 
       **Cut from the original scope:** worker pool, queue, autoscaling, per-user quotas.
       The charter already says this is not a hosted service, so a queue would exist only to let
@@ -101,5 +107,8 @@ built before either would be built twice, for the same reason the sandbox waited
 contract in M5. The only part of M9 that legitimately moves earlier is the token and cost
 accounting, and it moves because **M7 needs it**, not because M9 does.
 
-**Carried debt:** `SnapshotStore` (M5) is built and tested but nothing calls it. Wiring it into
-`resume` and into fork's `faithful` upgrade (ADR-0016) belongs alongside M7.
+**Carried debt: cleared 2026-08-24.** `SnapshotStore` is now wired in — `Agent` takes a workspace
+snapshot before each step, and `plan_fork(..., snapshots=, workspace=)` restores the world as it
+stood entering the fork step, which upgrades a `simulated` fork to `faithful`. ADR-0016 predicted
+this would change a tier rather than an interface, and it did: same call, same report shape, one
+field more.
