@@ -9,6 +9,7 @@ from typing import cast
 
 import pytest
 
+import tapeloop
 from tapeloop.core.loop import Agent
 from tapeloop.events import Message, ModelResponse, Role, StopReason, ToolCall, Usage
 from tapeloop.providers.stream import StreamEvent
@@ -122,7 +123,9 @@ def test_the_tape_is_readable_without_the_library(tmp_path: Path) -> None:
     _agent(tmp_path, tape, ScriptedClient(_script())).run("go")
     lines = [json.loads(line) for line in tape.read_text(encoding="utf-8").splitlines()]
 
-    assert lines[0] == {"kind": "header", "tapeloop": "0.0.0", "v": 1}
+    # Read the version rather than hardcoding it: it is single-sourced from the
+    # package, and a literal here turns every release into a spurious failure.
+    assert lines[0] == {"kind": "header", "tapeloop": tapeloop.__version__, "v": 1}
     assert [r["seq"] for r in lines[1:]] == list(range(len(lines) - 1)), "gapless, in write order"
     assert next(r["kind"] for r in lines[1:]) == "run_start"
     assert lines[-1]["kind"] == "run_end"
