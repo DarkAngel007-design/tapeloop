@@ -11,10 +11,11 @@ provider SDK's types.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Protocol, runtime_checkable
 
 from tapeloop.events import Message, ModelResponse
+from tapeloop.providers.stream import StreamEvent
 from tapeloop.tools.registry import ToolSpec
 
 
@@ -35,6 +36,22 @@ class ModelClient(Protocol):
         tools: Sequence[ToolSpec] = (),
         max_tokens: int = 4096,
     ) -> ModelResponse: ...
+
+    def stream(
+        self,
+        *,
+        model: str,
+        messages: Sequence[Message],
+        tools: Sequence[ToolSpec] = (),
+        max_tokens: int = 4096,
+    ) -> Iterator[StreamEvent]:
+        """Yield deltas as they arrive, ending with exactly one StreamEnd.
+
+        The StreamEnd carries the same ModelResponse ``complete()`` would have
+        returned, so callers can stream for display and still get one assembled
+        result. A stream that ends without a StreamEnd is a protocol violation.
+        """
+        ...
 
     def count_tokens(
         self,

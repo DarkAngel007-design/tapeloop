@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 from tapeloop.core.loop import Agent
@@ -15,6 +15,7 @@ from tapeloop.events import (
     ToolCall,
     Usage,
 )
+from tapeloop.providers.stream import StreamEnd, StreamEvent, TextDelta
 from tapeloop.record.base import InMemoryStore
 from tapeloop.tools import builtin
 from tapeloop.tools.registry import Registry, ToolSpec
@@ -41,6 +42,21 @@ class FakeClient:
     ) -> ModelResponse:
         self.seen.append(list(messages))
         return self._script.pop(0)
+
+    def stream(
+        self,
+        *,
+        model: str,
+        messages: Sequence[Message],
+        tools: Sequence[ToolSpec] = (),
+        max_tokens: int = 4096,
+    ) -> Iterator[StreamEvent]:
+        """Replay the scripted response as deltas, so streaming callers see the same run."""
+        response = self.complete(model=model, messages=messages, tools=tools)
+        if response.message.text:
+            for word in response.message.text.split(" "):
+                yield TextDelta(text=word + " ")
+        yield StreamEnd(response=response)
 
     def count_tokens(
         self,

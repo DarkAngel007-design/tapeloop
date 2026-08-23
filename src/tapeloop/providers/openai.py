@@ -11,12 +11,24 @@ divergences #1, #2 and #3 are absorbed.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Iterator, Sequence
+from typing import Any, cast
 
-from openai import NOT_GIVEN, OpenAI
-from openai.types.chat import ChatCompletion
+from openai import OpenAI, Stream, omit
+from openai.types.chat import (
+    ChatCompletion,
+    ChatCompletionChunk,
+    ChatCompletionMessageParam,
+    ChatCompletionToolUnionParam,
+)
 
+from tapeloop.core.errors import (
+    AuthenticationFailed,
+    ProviderError,
+    ProviderUnavailable,
+    RateLimited,
+    RequestInvalid,
+)
 from tapeloop.events import (
     Message,
     ModelResponse,
@@ -26,9 +38,50 @@ from tapeloop.events import (
     ToolCall,
     Usage,
 )
+from tapeloop.providers.stream import (
+    StreamEnd,
+    StreamEvent,
+    TextDelta,
+    ToolCallAccumulator,
+    ToolCallDelta,
+)
 from tapeloop.tools.registry import ToolSpec
 
 PROVIDER_ID = "openai"
+
+
+def translate(exc: Exception) -> ProviderError:
+    """Map an SDK exception onto the taxonomy the retry policy understands.
+
+    The only question the caller has is *is this worth trying again*, so that is what
+    the mapping answers. Anything unrecognized becomes non-retryable: retrying an
+    error we do not understand is how a permanent misconfiguration burns a budget.
+    """
+    import openai
+
+    if isinstance(exc, openai.RateLimitError):
+        return RateLimited(str(exc), retry_after=_retry_after(exc))
+    if isinstance(exc, openai.AuthenticationError | openai.PermissionDeniedError):
+        return AuthenticationFailed(str(exc))
+    if isinstance(exc, openai.APIConnectionError | openai.APITimeoutError):
+        return ProviderUnavailable(str(exc))
+    if isinstance(exc, openai.APIStatusError):
+        if exc.status_code >= 500:
+            return ProviderUnavailable(str(exc), retry_after=_retry_after(exc))
+        return RequestInvalid(str(exc))
+    return RequestInvalid(str(exc))
+
+
+def _retry_after(exc: Exception) -> float | None:
+    """Honour the server's own advice when it gives any. It knows things we do not."""
+    response = getattr(exc, "response", None)
+    header = getattr(response, "headers", {}) or {}
+    raw = header.get("retry-after") if hasattr(header, "get") else None
+    try:
+        return float(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
 
 # Divergence #3: their vocabulary, ours. Anything unmapped becomes OTHER, which the
 # loop treats as a stop -- an unknown future value must never look like a finished turn.
@@ -78,6 +131,20 @@ def render_messages(messages: Sequence[Message]) -> list[dict[str, Any]]:
     return out
 
 
+def wire_messages(messages: Sequence[Message]) -> list[ChatCompletionMessageParam]:
+    """Cast at the boundary, once.
+
+    render_messages builds plain dicts because that is what the wire format is. The
+    SDK wants its own TypedDicts. Casting here keeps every call site clean and puts
+    the one unavoidable unsafe step in a single, named place.
+    """
+    return cast(list[ChatCompletionMessageParam], render_messages(messages))
+
+
+def wire_tools(tools: Sequence[ToolSpec]) -> list[ChatCompletionToolUnionParam]:
+    return cast(list[ChatCompletionToolUnionParam], render_tools(tools))
+
+
 def render_tools(tools: Sequence[ToolSpec]) -> list[dict[str, Any]]:
     return [
         {
@@ -114,8 +181,8 @@ class OpenAIClient:
     ) -> ModelResponse:
         raw: ChatCompletion = self._client.chat.completions.create(
             model=model,
-            messages=render_messages(messages),  # pyright: ignore[reportArgumentType]
-            tools=render_tools(tools) or NOT_GIVEN,  # pyright: ignore[reportArgumentType]
+            messages=wire_messages(messages),
+            tools=wire_tools(tools) or omit,
             max_completion_tokens=max_tokens,
         )
         return self._parse(raw)
@@ -165,6 +232,73 @@ class OpenAIClient:
             ),
             stop_reason=_STOP.get(choice.finish_reason or "", StopReason.OTHER),
             usage=usage,
+        )
+
+    def stream(
+        self,
+        *,
+        model: str,
+        messages: Sequence[Message],
+        tools: Sequence[ToolSpec] = (),
+        max_tokens: int = 4096,
+    ) -> Iterator[StreamEvent]:
+        """Stream deltas, then yield one StreamEnd with the assembled response."""
+        accumulator = ToolCallAccumulator()
+        text_parts: list[str] = []
+        finish: str | None = None
+        usage = Usage()
+
+        raw_stream: Stream[ChatCompletionChunk] = self._client.chat.completions.create(
+            model=model,
+            messages=wire_messages(messages),
+            tools=wire_tools(tools) or omit,
+            max_completion_tokens=max_tokens,
+            stream=True,
+            # Without this the final chunk carries no usage and every streamed run
+            # reports zero tokens -- which silently breaks cost accounting at M9.
+            stream_options={"include_usage": True},
+        )
+
+        for chunk in raw_stream:
+            if chunk.usage:
+                cached = getattr(
+                    getattr(chunk.usage, "prompt_tokens_details", None), "cached_tokens", 0
+                )
+                usage = Usage(
+                    input_tokens=chunk.usage.prompt_tokens,
+                    output_tokens=chunk.usage.completion_tokens,
+                    cached_input_tokens=cached or 0,
+                )
+            if not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+            finish = choice.finish_reason or finish
+            delta = choice.delta
+
+            if delta.content:
+                text_parts.append(delta.content)
+                yield TextDelta(text=delta.content)
+
+            for call in delta.tool_calls or []:
+                event = ToolCallDelta(
+                    index=call.index,
+                    id=call.id,
+                    name=call.function.name if call.function else None,
+                    arguments_fragment=(call.function.arguments if call.function else None) or "",
+                )
+                accumulator.add(event)
+                yield event
+
+        yield StreamEnd(
+            response=ModelResponse(
+                message=Message(
+                    role=Role.ASSISTANT,
+                    text="".join(text_parts) or None,
+                    tool_calls=accumulator.finish(),
+                ),
+                stop_reason=_STOP.get(finish or "", StopReason.OTHER),
+                usage=usage,
+            )
         )
 
     def count_tokens(

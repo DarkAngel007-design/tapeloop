@@ -22,10 +22,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       the unimplemented Anthropic adapter type-checks.
       *Shipped 2026-08-23: all three verified. 27 tests, zero API spend. pyright strict clean.*
 
-- [ ] **M2 — Streaming, interrupts, retries**
+- [x] **M2 — Streaming, interrupts, retries**
       Token-by-token render, partial-JSON accumulation for tool arguments, clean mid-stream
       cancellation, typed error chain with backoff.
       **Ship when:** survives a forced 429 and a mid-stream Ctrl-C without corrupting the tape.
+      *Shipped 2026-08-23: `test_the_ship_criterion` does exactly that. 44 tests, zero API
+      spend, pyright strict clean.*
 
 - [ ] **M3 — The tape** ◆
       Append-only JSONL with a versioned schema. Canonical serialization. Content-addressed

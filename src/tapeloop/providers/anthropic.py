@@ -13,10 +13,11 @@ the point where each one will actually have to be handled.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 from tapeloop.events import Message, ModelResponse
+from tapeloop.providers.stream import StreamEvent
 from tapeloop.tools.registry import ToolSpec
 
 PROVIDER_ID = "anthropic"
@@ -73,6 +74,26 @@ class AnthropicClient:
         / refusal / pause_turn. Note ``pause_turn`` has no OpenAI equivalent at all --
         it is the one that will prove whether StopReason was designed or transcribed.
         Divergence #5: cache_control breakpoints are set here, not inferred.
+        """
+        raise NotImplementedError(_NOT_BUILT)
+
+    def stream(
+        self,
+        *,
+        model: str,
+        messages: Sequence[Message],
+        tools: Sequence[ToolSpec] = (),
+        max_tokens: int = 4096,
+    ) -> Iterator[StreamEvent]:
+        """The Messages API streams *content blocks*, not a flat delta channel.
+
+        Events arrive as content_block_start / content_block_delta / content_block_stop
+        around an indexed block, and a tool call's arguments come through as
+        ``input_json_delta`` fragments. Different envelope, identical problem: nothing
+        is valid JSON until the block closes, so ToolCallAccumulator applies unchanged.
+
+        That it applies unchanged is the useful signal — the accumulator was designed,
+        not transcribed from OpenAI's shape.
         """
         raise NotImplementedError(_NOT_BUILT)
 

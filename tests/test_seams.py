@@ -122,3 +122,91 @@ def test_store_collects_events() -> None:
     store.append(Event(kind="a", step=0))
     store.append(Event(kind="b", step=1))
     assert [e.kind for e in store.events()] == ["a", "b"]
+
+
+# ------------------------------------------------------- adapter streaming
+def test_openai_adapter_streams_and_assembles(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise OpenAIClient.stream() itself against fabricated chunks, no network.
+
+    This is the path the accumulator tests do not cover: chunk -> delta -> assembled
+    ModelResponse, including usage arriving only on the final chunk.
+    """
+    from types import SimpleNamespace
+
+    from tapeloop.providers.stream import StreamEnd, TextDelta, ToolCallDelta
+
+    def _create(**_kw: object) -> object:
+        return iter(chunks)
+
+    def chunk(
+        *,
+        content: str | None = None,
+        calls: list[object] | None = None,
+        finish: str | None = None,
+        usage: object | None = None,
+    ) -> object:
+        delta = SimpleNamespace(content=content, tool_calls=calls)
+        choice = SimpleNamespace(delta=delta, finish_reason=finish)
+        return SimpleNamespace(choices=[choice], usage=usage)
+
+    def call(index: int, cid: str | None, name: str | None, args: str) -> object:
+        return SimpleNamespace(
+            index=index, id=cid, function=SimpleNamespace(name=name, arguments=args)
+        )
+
+    chunks = [
+        chunk(content="Look"),
+        chunk(content="ing..."),
+        chunk(calls=[call(0, "c1", "read_file", '{"pa')]),
+        chunk(calls=[call(0, None, None, 'th": "a.txt"}')]),
+        chunk(finish="tool_calls"),
+        # Usage arrives alone on the last chunk when stream_options.include_usage is set.
+        chunk(usage=SimpleNamespace(prompt_tokens=11, completion_tokens=7)),
+    ]
+
+    fake = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=_create)))
+    client = OpenAIClient(client=fake)  # pyright: ignore[reportArgumentType]
+
+    events = list(client.stream(model="m", messages=[user("go")]))
+    assert [e.text for e in events if isinstance(e, TextDelta)] == ["Look", "ing..."]
+    assert len([e for e in events if isinstance(e, ToolCallDelta)]) == 2
+
+    end = events[-1]
+    assert isinstance(end, StreamEnd), "a stream must always end with exactly one StreamEnd"
+    assert end.response.stop_reason is StopReason.TOOL_USE
+    assert end.response.message.text == "Looking..."
+    assert end.response.message.tool_calls[0].arguments == {"path": "a.txt"}
+    assert end.response.usage.output_tokens == 7, "usage from the final chunk must survive"
+
+
+def test_sdk_exceptions_map_to_the_taxonomy() -> None:
+    """Only the retryable/not-retryable answer matters at the call site."""
+    # openai 3.x vendors its HTTP layer as `httpx2`, not `httpx`. Reaching for the
+    # SDK's own dependency keeps this test honest -- it constructs the exact exception
+    # type the SDK would raise, rather than a look-alike.
+    import httpx2
+    import openai
+
+    from tapeloop.core.errors import (
+        AuthenticationFailed,
+        ProviderUnavailable,
+        RateLimited,
+        RequestInvalid,
+    )
+    from tapeloop.providers.openai import translate
+
+    def status(code: int) -> openai.APIStatusError:
+        response = httpx2.Response(code, request=httpx2.Request("POST", "https://x"))
+        return openai.APIStatusError("boom", response=response, body=None)
+
+    assert isinstance(translate(status(503)), ProviderUnavailable)
+    assert isinstance(translate(status(400)), RequestInvalid)
+    assert isinstance(
+        translate(openai.APIConnectionError(request=httpx2.Request("POST", "https://x"))),
+        ProviderUnavailable,
+    )
+    # Anything unrecognized is NOT retryable: retrying an error we do not understand
+    # is how a permanent misconfiguration burns a budget.
+    assert translate(ValueError("who knows")).retryable is False
+    assert RateLimited("x").retryable is True
+    assert AuthenticationFailed("x").retryable is False

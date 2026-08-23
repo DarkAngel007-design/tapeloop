@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-23 · **Milestone:** M2 in progress · **Commits:** 3, local only, no remote
+**Updated:** 2026-08-23 · **Milestone:** M3 next · **Commits:** 5, local only, no remote
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -10,8 +10,8 @@
 |-----------|--------|----------|
 | M0 — bare loop | ✅ shipped | 137 code lines (enforced by test), two-tool task verified against a fake client *and* live |
 | M1 — registry, effects, four seams | ✅ shipped | 27 tests, 0 hand-written schemas, Anthropic adapter type-checks |
-| **M2 — streaming, interrupts, retries** | 🚧 **in progress** | see below |
-| M3 — the tape | ⬜ not started | the differentiator begins here |
+| M2 — streaming, interrupts, retries | ✅ shipped | `test_the_ship_criterion`: two forced 429s *and* a mid-stream cancel in one run |
+| **M3 — the tape** | ⬜ **next** | the differentiator begins here |
 
 ## Confirm the working state
 
@@ -19,26 +19,29 @@
 uv sync && uv run pytest && uv run ruff check . && uv run pyright
 ```
 
-Expected as of this writing: **27 passed**, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **44 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
-## M2 — what "done" means
+## M3 — what "done" means
 
-**Ship criterion:** survives a forced 429 and a mid-stream Ctrl-C without corrupting the tape.
+**Ship criterion:** re-running an unchanged agent is a 100% cache hit, byte-identical.
 
-Four pieces:
+This is where the project earns its name. Four pieces:
 
-1. **Streaming** — token-by-token output from the provider.
-2. **Partial-JSON accumulation** — tool arguments arrive as string *fragments* across chunks and
-   must be assembled per call index before parsing. This is the subtle one.
-3. **Cancellation** — a Ctrl-C mid-stream must stop cleanly and leave the record consistent: no
-   half-written assistant message, an explicit cancellation event instead.
-4. **Retries** — a typed error chain distinguishing retryable (429, 5xx, connection) from
-   terminal (400, 404), with exponential backoff plus jitter, honouring `Retry-After`.
+1. **Append-only JSONL transcript** with a `format_version` on the first line (ADR-0010).
+   Replaces `InMemoryStore` behind the existing `TranscriptStore` seam — the loop should not
+   change.
+2. **Canonical serialization.** Sorted keys, stable separators, an explicit float format, and a
+   decided ordering for a parallel tool-result set. Getting any of these wrong produces a false
+   cache miss, which presents as "replay is broken" and is miserable to debug. Write the test
+   before the implementation.
+3. **Content-addressed step keys** — `sha256(provider, model, params, canonical(tool_schemas),
+   canonical(events[0..n]))`. Explicitly excludes timestamps and run ids (ADR-0004).
+4. **The determinism lint rule** and a replay-equivalence test, so Contract 1 is enforced by CI
+   rather than by discipline.
 
-**Determinism note:** retry jitter uses randomness, which `CLAUDE.md` bans in `src/`. The
-resolution is that retry timing is transport-level — it never reaches a prompt or a step key —
-and the policy owns a *seeded* `random.Random` instance rather than touching the global one.
+Write `docs/reference/transcript-format.md` as part of this milestone, not after. The moment a
+tape exists on someone's disk, that document is a compatibility promise.
 
 ## Environment facts that cost time to rediscover
 
@@ -63,17 +66,26 @@ and the policy owns a *seeded* `random.Random` instance rather than touching the
   module level. The failure mode is silent: the wrong model, no error.
 - **`get_type_hints` cannot resolve a type declared inside a function** without `localns`. Tool
   packs are built by factory functions, so this is the normal case.
+- **openai 3.x uses `omit`, not `NOT_GIVEN`,** for optional request parameters, and vendors its
+  HTTP layer as **`httpx2`**, not `httpx`.
+- **A `# pyright: ignore` on a call defeats overload resolution.** `stream=True` silently failed
+  to select the streaming overload. Cast at a named boundary instead of ignoring at call sites.
+- **Streaming reports zero tokens** unless `stream_options={"include_usage": True}` is set. The
+  run works; only the cost accounting is wrong, so it would surface much later as a mystery.
+- **`@contextmanager` with `-> Iterator[T]` is deprecated on 3.14.** Use `Generator[T]`.
 
 ## Next action
 
-Implement M2 in this order — each step is independently testable:
+Start M3, in this order:
 
-1. `core/errors.py` — the typed error taxonomy.
-2. `core/retry.py` — `RetryPolicy` with seeded jitter and `Retry-After` handling.
-3. `core/cancel.py` — a cancellation token plus a SIGINT context manager.
-4. `providers/base.py` — add `stream()` to the `ModelClient` Protocol; the Anthropic
-   signatures-only adapter must be extended to match, or it stops type-checking (which is the
-   design check working).
-5. `providers/openai.py` — implement `stream()` with a tool-call fragment accumulator.
-6. `core/loop.py` — thread streaming, cancellation, and retries through.
-7. Tests, including the ship-criterion test: forced 429 *and* mid-stream interrupt.
+1. `docs/reference/transcript-format.md` — write the spec first. It is a compatibility promise.
+2. Canonical serialization plus its tests, before anything depends on it.
+3. `record/jsonl.py` — a `TranscriptStore` writing versioned append-only JSONL.
+4. Step keys, and the cache-hit test that is the ship criterion.
+5. The determinism lint rule (no wall-clock, no unseeded randomness, no unordered iteration
+   reaching a prompt or a key) and a replay-equivalence test.
+
+**Open design question to settle first:** what is the canonical ordering of a parallel
+tool-result set? Arrival order is not stable across providers. Sorting by `call_id` is stable but
+discards the order the model asked in. Decide, and write the ADR before implementing — this is
+exactly the kind of thing that is cheap now and a migration later.
