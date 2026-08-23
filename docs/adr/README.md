@@ -28,3 +28,4 @@ Format: Context (the forces) → Decision (what we chose) → Consequences (what
 | [0018](0018-pinned-judge.md) | LLM-as-judge, pinned and measured | Accepted |
 | [0019](0019-token-counting.md) | Token counting is exact where possible, and always labelled | Accepted |
 | [0020](0020-compaction-is-a-recorded-step.md) | Compaction is a recorded step, not a side effect | Accepted |
+| [0021](0021-subagents-get-their-own-tape.md) | A subagent run gets its own tape | Accepted |

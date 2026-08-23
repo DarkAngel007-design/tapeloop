@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-24 · **Milestone:** M8 next · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
+**Updated:** 2026-08-24 · **Milestone:** M9 — the last one · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -16,7 +16,8 @@
 | M5 — sandbox, permissions, resume | ✅ shipped | hostile-README test: the model obeys the injection, the command does not run |
 | M6 — eval harness & baseline | ✅ shipped | 0.911 ± 0.268 deterministic, committed with the model id |
 | M7 — context management | ✅ shipped | no regression on 18 shared tasks; −95.6% tokens on the context task |
-| **M8 — subagents & MCP** | ⬜ **next** | |
+| M8 — subagents & MCP | ✅ shipped | server verified against raw JSON-RPC from a foreign peer |
+| **M9 — viewer & observability** | ⬜ **next** | scope reduced 2026-08-24; see ROADMAP |
 
 ## Confirm the working state
 
@@ -28,27 +29,31 @@ git config core.hooksPath .githooks   # required after a fresh clone
 **After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
 pre-commit secret guard in `.githooks/` is inert until you do.
 
-Expected as of this writing: **111 passed**, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **125 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
-## M8 — what "done" means
+## M9 — what "done" means
 
-**Ship criterion:** the MCP server runs in a different host; orchestration delta measured in
-either direction.
+**Ship criterion:** someone who is not the author runs a task and can open their trace, with
+per-step cost visible.
 
-1. **Subagents** — spawn with isolated context and a *structured* return. The structured return is
-   what makes them composable rather than just recursive.
-2. **Pipeline vs barrier fan-out**, measured against each other. A barrier wastes wall-clock unless
-   stage N+1 genuinely needs cross-item context.
-3. **MCP client and server.** The client consumes any third-party server; the server exposes
-   tapeloop's tools to other hosts. The server working in a *different* host is the gate.
-4. Re-run the suite and publish the delta **in either direction** — if orchestration does not help
-   here, that is the result.
+Scope was reduced on 2026-08-24 (see `ROADMAP.md`): worker pool, queue, autoscaling and per-user
+quotas are cut. What remains:
 
-**Design question to settle first:** a subagent run is a run. Does it get its own tape, or nested
-records in the parent's? Its own tape is cleaner to reason about and makes `fork` work on a
-subagent; nested records keep one run in one file. This decides the trace viewer's data model at
-M9, so it is much cheaper now.
+1. **Containerise.** A Dockerfile that runs the CLI, nothing more elaborate.
+2. **OpenTelemetry spans**, one per step, carrying tokens and dollars. The token accounting M7
+   built is the input; do not build a second one.
+3. **The trace viewer.** A local web page over a tape. **It renders a tree**: a subagent has its
+   own tape (ADR-0021), so the viewer walks `subagent` records and renders each child with the
+   same code that renders the parent. That was the whole reason to settle ADR-0021 before M9.
+
+**What is already available to it:** step keys, per-step usage, effect classes, permission
+decisions, truncation and compaction records, and `subagent` / `parent` links. The tape has
+everything the viewer needs; M9 is presentation, not instrumentation.
+
+**Remaining carried debt** — worth clearing during M9 or declaring won't-fix:
+`SnapshotStore` is built and tested but nothing calls it. Wiring it into `resume` also upgrades a
+`simulated` fork to `faithful` (ADR-0016).
 
 ## Environment facts that cost time to rediscover
 
@@ -95,8 +100,8 @@ M9, so it is much cheaper now.
 
 ## Next action
 
-Start M8. Settle the subagent-tape ADR first (above), then subagents, then MCP both ends, then
-measure.
+Start M9 — the last milestone. Containerise, add OTel spans over M7's existing accounting, then
+build the viewer as a tree over tapes.
 
 Regression policy: re-run `uv run tapeloop eval --repeats 5` and compare against
 `evals/m7-2026-08-24/`. A move greater than one spread (0.261) is investigated before merging.

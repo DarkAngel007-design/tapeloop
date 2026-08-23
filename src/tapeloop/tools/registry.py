@@ -256,6 +256,19 @@ class Registry:
 
         return decorate
 
+    def register(self, spec: ToolSpec) -> ToolSpec:
+        """Add a pre-built spec.
+
+        The decorator is the normal path, because a signature is a better source of
+        truth than a hand-written schema. This exists for tools whose schema arrives
+        from somewhere else entirely -- an MCP server describes its tools over the
+        wire, and there is no local signature to derive anything from.
+        """
+        if spec.name in self._tools:
+            raise ToolDefinitionError(f"duplicate tool name: {spec.name}")
+        self._tools[spec.name] = spec
+        return spec
+
     def __contains__(self, name: object) -> bool:
         return name in self._tools
 

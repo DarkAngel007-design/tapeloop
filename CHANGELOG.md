@@ -6,6 +6,23 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 ## [Unreleased]
 
 ### Added
+- **Subagents** (`agents/subagent.py`) — isolated context, narrowed tool set, and a *structured*
+  return, which is what makes them composable rather than merely recursive. Each child writes its
+  own tape (ADR-0021), so `show` / `fork` / `diff` work on a subagent unchanged. A failed child
+  does not take down a fan-out.
+- **Orchestration shapes** (`agents/orchestrate.py`) — `pipeline` and `barrier`, with
+  `compare_shapes` measuring the difference deterministically.
+- **MCP server** (`mcp/server.py`) — exposes a `Registry` over stdio JSON-RPC. Run with
+  `python -m tapeloop.mcp.server`. Effect classes cannot cross the wire, so they are carried in
+  the description text rather than silently lost.
+- **MCP client** (`mcp/client.py`) — imports a third-party server's tools into a `Registry`, where
+  they are dispatched, permission-gated and recorded exactly like local ones. Imported tools
+  default to `write` (ADR-0005), because a remote tool that mutates must never look safe.
+- **`Registry.register`** — a public way to add a spec whose schema came from the wire rather than
+  from a signature.
+- [`docs/evals/m8-orchestration.md`](docs/evals/m8-orchestration.md).
+
+### Added
 - **Context management** (`context/`) — a `ContextBudget` that caps oversized tool results and
   triggers compaction near the window ceiling.
 - **Deterministic truncation** keeping head and tail with a visible elision marker, so an agent

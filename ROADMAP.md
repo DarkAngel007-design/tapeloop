@@ -67,9 +67,15 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       tasks, and 289,056 → 12,615 input tokens on the context-pressure task (−95.6%).
       ADR-0019 (token counts are labelled) and ADR-0020 (compaction is a recorded step).*
 
-- [ ] **M8 — Subagents & MCP, both ends**
+- [x] **M8 — Subagents & MCP, both ends**
       **Ship when:** the server runs in a different MCP host; orchestration delta measured
       in either direction.
+      *Shipped 2026-08-24. The MCP server is driven by raw JSON-RPC over a subprocess pipe with
+      no tapeloop code on the sending side — a conformance check, not a round-trip. Subagents get
+      their own tape (ADR-0021). Orchestration delta in
+      [`docs/evals/m8-orchestration.md`](docs/evals/m8-orchestration.md): 60% saved on one
+      workload, 0% on another, and the eval suite has no fan-out task so its delta is
+      deliberately not claimed. 125 tests.*
 
 - [ ] **M9 — Viewer & observability** *(scope reduced 2026-08-24 — see below)*
       Containerise, OpenTelemetry spans carrying per-step tokens and dollars, and a local web
