@@ -2,7 +2,10 @@
 
 **An agent runtime that records every step, so any run can be replayed, forked, and diffed.**
 
-> ⚠️ **Status: pre-alpha, M0.** Nothing here is usable yet. The public API does not exist.
+> ⚠️ **Status: pre-alpha, M2 of M9.** Built so far: the agent loop, a tool registry, four
+> swappable seams, streaming, cancellation and retries. **The tape itself does not exist yet** —
+> the `replay` / `fork` / `diff` commands below describe the design, not shipped behaviour.
+> They land at M3–M4. There is no public API and no CLI yet.
 > See [ROADMAP.md](ROADMAP.md) for what is built and what isn't.
 
 ---

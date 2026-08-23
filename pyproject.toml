@@ -19,8 +19,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/OWNER/tapeloop"
-Documentation = "https://OWNER.github.io/tapeloop"
+Homepage = "https://github.com/DarkAngel007-design/tapeloop"
+Documentation = "https://DarkAngel007-design.github.io/tapeloop"
 
 [dependency-groups]
 dev = [
