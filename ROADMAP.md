@@ -60,15 +60,37 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 - [ ] **M7 — Context management**
       Per-step token accounting, tool-result truncation budgets, compaction near the ceiling.
       **Ship when:** a task that previously died on context completes, with the eval delta measured.
+      *Note: `count_tokens` on the OpenAI adapter is currently a crude `len(blob) // 4` estimate.
+      It has to become real here — the ship criterion cannot be met without it — and M9 inherits
+      that accounting rather than building its own.*
 
 - [ ] **M8 — Subagents & MCP, both ends**
       **Ship when:** the server runs in a different MCP host; orchestration delta measured
       in either direction.
 
-- [ ] **M9 — Viewer, deploy, observability**
-      **Ship when:** someone who is not the author runs a task and their trace is viewable.
+- [ ] **M9 — Viewer & observability** *(scope reduced 2026-08-24 — see below)*
+      Containerise, OpenTelemetry spans carrying per-step tokens and dollars, and a local web
+      trace viewer. Nested runs from M8 render as a tree, not a list.
+      **Ship when:** someone who is not the author runs a task and can open their trace, with
+      per-step cost visible.
+
+      **Cut from the original scope:** worker pool, queue, autoscaling, per-user quotas.
+      The charter already says this is not a hosted service, so a queue would exist only to let
+      the README say "production grade". That third of M9 is the least distinctive work in the
+      project and the most time-consuming, and a reader stops on the eval table and a trace
+      screenshot long before they check for a worker pool. Recorded here rather than quietly
+      under-delivered against the wider criterion.
 
 ---
 
 **Not a milestone:** the Anthropic adapter. It lands whenever credits allow. The day it passes
 the conformance suite *unmodified* is the day the provider abstraction is proven.
+
+**Why the order is what it is.** M7 and M8 both change what a trace *contains* — M7 adds
+compaction and truncation records, M8 turns a run from a list into a tree of child runs. A viewer
+built before either would be built twice, for the same reason the sandbox waited for the replay
+contract in M5. The only part of M9 that legitimately moves earlier is the token and cost
+accounting, and it moves because **M7 needs it**, not because M9 does.
+
+**Carried debt:** `SnapshotStore` (M5) is built and tested but nothing calls it. Wiring it into
+`resume` and into fork's `faithful` upgrade (ADR-0016) belongs alongside M7.

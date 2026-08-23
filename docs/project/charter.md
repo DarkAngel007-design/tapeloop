@@ -60,6 +60,9 @@ Stated so they do not get relitigated:
 - **Not a prompt-management product.** Prompts live in git.
 - **Not multi-provider breadth.** Only adapters exercised by the conformance suite ship.
 - **Not dependency-maximal.** A short dependency list is a stated feature, enforced in review.
+- **No worker pool, queue, or autoscaling.** Cut from M9 on 2026-08-24. These follow from "not a
+  hosted service" and exist only to make a README say "production grade". The trace viewer and
+  per-step cost accounting stay; the orchestration around them does not.
 
 ## Constraints
 

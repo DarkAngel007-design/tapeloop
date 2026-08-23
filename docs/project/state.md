@@ -53,8 +53,10 @@ Use dated model ids. `gpt-4o-mini` and `gpt-4o-mini-2024-07-18` are different nu
 M6 is what makes M7 measurable — without a baseline there is no way to show compaction helped
 rather than merely ran.
 
-1. Per-step token accounting (`count_tokens` on the seam since M1, currently a crude estimate for
-   OpenAI — that has to become real).
+1. Per-step token accounting (`count_tokens` has been on the seam since M1 but is a crude
+   `len(blob) // 4` estimate for OpenAI). It has to become real here: the ship criterion cannot be
+   met without it, and **M9 inherits this accounting rather than building its own** — the only
+   part of M9 that legitimately moves earlier.
 2. Tool-result truncation with a budget, head+tail elision.
 3. Compaction near the ceiling.
 4. Re-run the M6 suite and publish the delta, in both directions if it hurt.
@@ -108,3 +110,13 @@ project so far — a results table with variance is what almost no comparable re
 **Carried debt, still open:** `SnapshotStore` is built and tested but nothing calls it. Wiring it
 into `resume` and into fork's `faithful` upgrade (ADR-0016) is small and well defined. Do it
 alongside M7.
+
+**Scope decision, 2026-08-24:** M9 is reduced to containerise + OTel + trace viewer. Worker pool,
+queue, autoscaling and per-user quotas are cut — they follow from "not a hosted service" and only
+existed to justify the phrase "production grade". Recorded in `ROADMAP.md` and the charter's
+non-goals so it does not get relitigated.
+
+**Order is not negotiable, and here is why:** M7 adds compaction and truncation records to the
+tape; M8 turns a run from a list into a tree of child runs. Both change what a trace *contains*, so
+a viewer built before them gets built twice — the same dependency argument that kept the sandbox
+until M5.
