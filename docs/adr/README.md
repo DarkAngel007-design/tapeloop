@@ -26,3 +26,5 @@ Format: Context (the forces) → Decision (what we chose) → Consequences (what
 | [0016](0016-fork-declares-its-own-soundness.md) | Fork declares its own soundness from the effects it replayed | Accepted |
 | [0017](0017-permission-model.md) | Permission decisions are events on the tape | Accepted |
 | [0018](0018-pinned-judge.md) | LLM-as-judge, pinned and measured | Accepted |
+| [0019](0019-token-counting.md) | Token counting is exact where possible, and always labelled | Accepted |
+| [0020](0020-compaction-is-a-recorded-step.md) | Compaction is a recorded step, not a side effect | Accepted |

@@ -161,6 +161,7 @@ def write_results(run: SuiteRun, suite: Suite, directory: Path) -> tuple[Path, P
                 "output_tokens": a.output_tokens,
                 "error": a.error,
                 "grade_reasons": a.grade_reasons,
+                "judge_agreement": a.judge_agreement,
                 "judgments": [{"passed": p, "reason": r} for p, r in a.judgments],
                 "tape": a.tape.name if a.tape else None,
             }

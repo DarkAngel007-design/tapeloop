@@ -31,6 +31,15 @@ def _default_tape(directory: Path, stem: str) -> Path:
     return candidate
 
 
+def _budget(model: str, *, enabled: bool = True) -> object | None:
+    """Context management is on by default: a harness without it is broken for real work."""
+    if not enabled:
+        return None
+    from tapeloop.context.budget import ContextBudget
+
+    return ContextBudget(model=model)
+
+
 def _build_agent(*, model: str, workspace: Path, tape: Path, system: str | None) -> Agent:
     from tapeloop.providers.openai import OpenAIClient
     from tapeloop.tools import builtin
@@ -41,6 +50,7 @@ def _build_agent(*, model: str, workspace: Path, tape: Path, system: str | None)
         registry=builtin.build(workspace),
         model=model,
         store=JsonlStore(tape),
+        budget=_budget(model),  # pyright: ignore[reportArgumentType]
         **kwargs,  # pyright: ignore[reportArgumentType]
     )
 
@@ -141,6 +151,11 @@ def cmd_eval(args: argparse.Namespace) -> int:
         None if args.no_judge else LlmJudge(client=client, model=args.judge_model, k=args.judge_k)
     )
     suite = build_suite(judge=judge)
+    if args.only:
+        suite.tasks = [t for t in suite.tasks if t.id == args.only]
+        if not suite.tasks:
+            print(f"no task named {args.only!r}", file=sys.stderr)
+            return 2
     root = Path(args.out)
 
     def factory(workspace: Path, tape: Path) -> Agent:
@@ -149,6 +164,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
             registry=builtin.build(workspace),
             model=args.model,
             store=JsonlStore(tape),
+            budget=_budget(args.model, enabled=not args.no_budget),  # pyright: ignore[reportArgumentType]
         )
 
     def progress(attempt: Attempt) -> None:
@@ -242,6 +258,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--judge-k", type=int, default=3, help="judgments per grade, to measure agreement"
     )
     ev.add_argument("--no-judge", action="store_true", help="deterministic tasks only")
+    ev.add_argument(
+        "--no-budget",
+        action="store_true",
+        help="disable context management, to measure the delta it makes",
+    )
+    ev.add_argument("--only", help="run one task by id")
     ev.add_argument("--out", default="evals/latest", help="where workspaces, tapes and results go")
     ev.set_defaults(func=cmd_eval)
 

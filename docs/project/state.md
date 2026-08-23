@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-24 · **Milestone:** M7 next · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
+**Updated:** 2026-08-24 · **Milestone:** M8 next · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -15,7 +15,8 @@
 | M4 — replay, fork, diff | ✅ shipped | fork at step 12 replays the prefix in <1s; CLI works |
 | M5 — sandbox, permissions, resume | ✅ shipped | hostile-README test: the model obeys the injection, the command does not run |
 | M6 — eval harness & baseline | ✅ shipped | 0.911 ± 0.268 deterministic, committed with the model id |
-| **M7 — context management** | ⬜ **next** | first milestone that can be measured against a baseline |
+| M7 — context management | ✅ shipped | no regression on 18 shared tasks; −95.6% tokens on the context task |
+| **M8 — subagents & MCP** | ⬜ **next** | |
 
 ## Confirm the working state
 
@@ -27,23 +28,27 @@ git config core.hooksPath .githooks   # required after a fresh clone
 **After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
 pre-commit secret guard in `.githooks/` is inert until you do.
 
-Expected as of this writing: **100 passed**, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **111 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
-## M7 — what "done" means
+## M8 — what "done" means
 
-**Ship criterion:** a task that previously died on context completes, with the eval delta measured.
+**Ship criterion:** the MCP server runs in a different host; orchestration delta measured in
+either direction.
 
-M6 is what makes M7 measurable — without a baseline there is no way to show compaction helped
-rather than merely ran.
+1. **Subagents** — spawn with isolated context and a *structured* return. The structured return is
+   what makes them composable rather than just recursive.
+2. **Pipeline vs barrier fan-out**, measured against each other. A barrier wastes wall-clock unless
+   stage N+1 genuinely needs cross-item context.
+3. **MCP client and server.** The client consumes any third-party server; the server exposes
+   tapeloop's tools to other hosts. The server working in a *different* host is the gate.
+4. Re-run the suite and publish the delta **in either direction** — if orchestration does not help
+   here, that is the result.
 
-1. Per-step token accounting (`count_tokens` has been on the seam since M1 but is a crude
-   `len(blob) // 4` estimate for OpenAI). It has to become real here: the ship criterion cannot be
-   met without it, and **M9 inherits this accounting rather than building its own** — the only
-   part of M9 that legitimately moves earlier.
-2. Tool-result truncation with a budget, head+tail elision.
-3. Compaction near the ceiling.
-4. Re-run the M6 suite and publish the delta, in both directions if it hurt.
+**Design question to settle first:** a subagent run is a run. Does it get its own tape, or nested
+records in the parent's? Its own tape is cleaner to reason about and makes `fork` work on a
+subagent; nested records keep one run in one file. This decides the trace viewer's data model at
+M9, so it is much cheaper now.
 
 ## Environment facts that cost time to rediscover
 
@@ -71,6 +76,8 @@ rather than merely ran.
   the above.
 - **A tape can contain secrets** — it records everything the tools read. `.tapeloop/` is
   gitignored; review a tape before attaching it to a bug report.
+- **A judged score moving between runs is usually the judge, not the agent.** Check
+  `judge_agreement` before believing a judged delta — see `docs/evals/m7-delta.md`.
 - **Never write a tape inside the agent's workspace.** The tape becomes something the agent
   observes, so `list_files` differs on the second run, the step key diverges, and replay misses
   for no visible reason. Recording must not change what is recorded.
@@ -88,13 +95,16 @@ rather than merely ran.
 
 ## Next action
 
-Start M7. It is the first milestone that can be *measured*: re-run
-`uv run tapeloop eval --repeats 5` afterwards and compare against
-`evals/baseline-2026-08-24/`. A change that moves the deterministic mean by more than one spread
-(0.268) gets investigated before merging, not explained afterwards.
+Start M8. Settle the subagent-tape ADR first (above), then subagents, then MCP both ends, then
+measure.
 
-Note the two known-failing tasks are findings about the model, not bugs to fix:
-`impossible-request` 0/5 and `count-with-exclusions` 2/5. Do not tune the suite to make them pass.
+Regression policy: re-run `uv run tapeloop eval --repeats 5` and compare against
+`evals/m7-2026-08-24/`. A move greater than one spread (0.261) is investigated before merging.
+Compare **shared tasks only** — headline means across different task sets are not comparable, a
+mistake `docs/evals/m7-delta.md` documents.
+
+The two known-failing tasks are findings about the model, not bugs: `impossible-request` 0/5 and
+`count-with-exclusions` 2/5. Do not tune the suite to make them pass.
 
 **Carried debt, still open:** `SnapshotStore` is built and tested but nothing calls it. Wiring it
 into `resume` and into fork's `faithful` upgrade (ADR-0016) is small and well defined. Do it

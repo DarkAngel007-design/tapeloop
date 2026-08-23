@@ -58,12 +58,14 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       added before freezing a baseline. Failure taxonomy filled in from real tapes; F11 and F12
       are new modes found by this run.*
 
-- [ ] **M7 — Context management**
+- [x] **M7 — Context management**
       Per-step token accounting, tool-result truncation budgets, compaction near the ceiling.
       **Ship when:** a task that previously died on context completes, with the eval delta measured.
-      *Note: `count_tokens` on the OpenAI adapter is currently a crude `len(blob) // 4` estimate.
-      It has to become real here — the ship criterion cannot be met without it — and M9 inherits
-      that accounting rather than building its own.*
+      *Shipped 2026-08-24. `test_ship_criterion_a_task_that_died_on_context_now_completes` proves
+      the death case deterministically. Real-world delta measured in
+      [`docs/evals/m7-delta.md`](docs/evals/m7-delta.md): identical accuracy on all 18 shared
+      tasks, and 289,056 → 12,615 input tokens on the context-pressure task (−95.6%).
+      ADR-0019 (token counts are labelled) and ADR-0020 (compaction is a recorded step).*
 
 - [ ] **M8 — Subagents & MCP, both ends**
       **Ship when:** the server runs in a different MCP host; orchestration delta measured

@@ -15,6 +15,13 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
+from tapeloop.context.budget import ContextBudget
+from tapeloop.context.compact import (
+    COMPACTION_PROMPT_VERSION,
+    apply_compaction,
+    plan_compaction,
+    summary_request,
+)
 from tapeloop.core.cancel import CancellationToken
 from tapeloop.core.errors import Cancelled, ProviderError
 from tapeloop.core.retry import RetryPolicy
@@ -76,6 +83,8 @@ class Agent:
     max_steps: int = 12
     max_tokens: int = 4096
     retry: RetryPolicy = field(default_factory=RetryPolicy)
+    budget: ContextBudget | None = None
+    """Truncates oversized tool results and compacts near the ceiling. None = neither."""
     policy: PermissionPolicy | None = None
     """Gates every tool call. None means the old behaviour: everything runs."""
     cache: StepCache | None = None
@@ -134,8 +143,11 @@ class Agent:
                 response = cached
             else:
                 try:
+                    # Bound explicitly: compaction reassigns `messages` inside this
+                    # loop, so a late-binding closure would send whatever the list
+                    # happened to be at call time rather than at definition time.
                     response = self.retry.call(
-                        lambda: self._one_turn(messages, on_delta=on_delta, token=token),
+                        lambda m=messages: self._one_turn(m, on_delta=on_delta, token=token),
                         token=token,
                     )
                 except Cancelled:
@@ -191,6 +203,25 @@ class Agent:
                 else:
                     content = self.registry.dispatch(call.name, call.arguments)
 
+                if self.budget is not None:
+                    fitted = self.budget.fit_tool_result(content)
+                    if fitted.happened:
+                        # The marker is left visible on purpose: an agent that knows
+                        # it is reading an excerpt can narrow its search; one handed
+                        # a silently truncated file cannot.
+                        self.store.append(
+                            Event(
+                                kind="truncated",
+                                step=step,
+                                payload={
+                                    "tool": call.name,
+                                    "elided_lines": fitted.elided_lines,
+                                    "elided_chars": fitted.elided_chars,
+                                },
+                            )
+                        )
+                    content = fitted.text
+
                 batch.append(
                     ToolResult(
                         call_id=call.id, content=content, is_error=content.startswith("ERROR:")
@@ -216,6 +247,9 @@ class Agent:
                     payload=encode_message(batch_message, calls=response.message.tool_calls),
                 )
             )
+
+            if self.budget is not None:
+                messages = self._maybe_compact(messages, step=step)
         else:
             stop = StopReason.OTHER
 
@@ -246,6 +280,58 @@ class Agent:
             text=text,
             cancelled=cancelled,
         )
+
+    def _maybe_compact(self, messages: list[Message], *, step: int) -> list[Message]:
+        """Summarise old history when the window fills. ADR-0020: this is a step.
+
+        The summary comes from a keyed, cached model call, so a replay reuses the
+        same summary rather than generating a new one -- without that, every key
+        after a compaction would diverge and replay would silently stop working.
+        """
+        assert self.budget is not None
+        due, usage = self.budget.should_compact(messages)
+        if not due:
+            return messages
+        plan = plan_compaction(messages, keep_recent=self.budget.keep_recent)
+        if not plan.worthwhile:
+            return messages
+
+        request = summary_request(messages[plan.compact_from : plan.compact_to])
+        key = step_key(
+            provider=self.client.provider_id,
+            model=self.model,
+            params={"purpose": "compaction", "prompt_version": COMPACTION_PROMPT_VERSION},
+            tools=(),
+            messages=request,
+        )
+        cached = self.cache.get(key) if self.cache else None
+        response = cached or self.retry.call(
+            lambda: self.client.complete(model=self.model, messages=request, max_tokens=1024)
+        )
+        self.store.append(
+            Event(kind="step", step=step, payload={"key": key, **encode_response(response)})
+        )
+
+        summary = response.message.text or ""
+        if not summary.strip():
+            # A failed summary must not silently delete history.
+            return messages
+
+        compacted = apply_compaction(messages, plan, summary)
+        self.store.append(
+            Event(
+                kind="compaction",
+                step=step,
+                payload={
+                    "replaced": plan.replaces,
+                    "before_tokens": usage.tokens,
+                    "after_tokens": self.budget.measure(compacted).tokens,
+                    "method": usage.method.value,
+                    "prompt_version": COMPACTION_PROMPT_VERSION,
+                },
+            )
+        )
+        return compacted
 
     def _one_turn(
         self,

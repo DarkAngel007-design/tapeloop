@@ -6,6 +6,22 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 ## [Unreleased]
 
 ### Added
+- **Context management** (`context/`) — a `ContextBudget` that caps oversized tool results and
+  triggers compaction near the window ceiling.
+- **Deterministic truncation** keeping head and tail with a visible elision marker, so an agent
+  that has been given an excerpt knows to search rather than assume. Pure by construction: it
+  feeds step keys, so anything non-deterministic here would break replay.
+- **Compaction as a recorded step** (ADR-0020) — summarising is a model call, so it is keyed,
+  cached and written to the tape. Done as a side effect it would produce a different summary on
+  every replay and every key after it would diverge. The system prompt and the original task are
+  never compacted.
+- **Labelled token counts** (ADR-0019) — `exact` / `approximate` / `estimated`, with `tiktoken`
+  as an optional extra. Nothing downstream can treat an estimate as a measurement.
+- `needle-in-a-big-file` eval task, and `--no-budget` / `--only` on `tapeloop eval`.
+- [`docs/evals/m7-delta.md`](docs/evals/m7-delta.md) — the measured comparison, including why the
+  judged score's apparent improvement is judge noise and not a result.
+
+### Added
 - **First baseline** — `evals/baseline-2026-08-24/`, committed with the dated model id that
   produced it. Deterministic 0.911 ± 0.268 over 18 tasks; judged 0.867 ± 0.231 over 3.
 - **`results.json`** alongside `results.md` — every judgment verbatim, per attempt. The markdown

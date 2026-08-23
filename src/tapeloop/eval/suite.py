@@ -284,6 +284,29 @@ def build_suite(*, judge: LlmJudge | None = None) -> Suite:
         expected="bonus",
     )
 
+    # ---------------------------------------------------------- context
+    # Needs M7. A naive read of the whole file is most of a context window, and the
+    # answer sits in the middle where truncation removes it -- so the elision marker
+    # has to be visible enough that the agent switches to searching instead.
+    add(
+        "needle-in-a-big-file",
+        "Find the line in server.log containing the word CRITICAL and write that "
+        "line's id number to found.txt.",
+        [FileContains("found.txt", "4242")],
+        setup={
+            "server.log": "\n".join(
+                (
+                    f"{i:05} INFO  routine request handled, latency 12ms, cache warm"
+                    if i != 4242
+                    else "4242 CRITICAL disk controller reset, data path degraded"
+                )
+                for i in range(9000)
+            )
+        },
+        tags=("hard", "context", "search"),
+        max_steps=14,
+    )
+
     # ---------------------------------------------------------- judged
     if judge is not None:
         suite.add(
