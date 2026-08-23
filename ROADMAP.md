@@ -42,10 +42,12 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       *Shipped 2026-08-24: `test_ship_criterion_fork_at_step_12_replays_the_prefix_in_under_a_second`.
       Plus a zero-dependency CLI (`run` / `show` / `fork` / `diff`) and ADR-0016. 72 tests.*
 
-- [ ] **M5 — Sandbox, permissions, resume**
+- [x] **M5 — Sandbox, permissions, resume**
       Docker executor, permission rules per tool and argument, workspace snapshotting — which
       is what makes `resume` possible as distinct from `replay`.
       **Ship when:** a repo file that tries to instruct the agent is refused, and it's a test.
+      *Shipped 2026-08-24: `test_ship_criterion_a_hostile_file_cannot_make_the_agent_act`.
+      Plus ADR-0017, SECURITY.md, and a stated threat model. 88 tests.*
 
 - [ ] **M6 — Eval harness & first numbers**
       ~30 domain-neutral tasks, deterministic graders, 5 seeds each. Fork makes this cheap.

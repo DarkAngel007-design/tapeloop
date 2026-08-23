@@ -1,0 +1,26 @@
+# Copy to .tapeloop/permissions.toml. Commit it: a permission set is a property of
+# a codebase, not a person, and it should be reviewed like any other change.
+#
+# Syntax:  "tool:argument-glob"   Arguments are rendered as values joined by spaces,
+#          so run_command({"command": "git status"}) renders to "git status".
+# Order:   deny beats allow, regardless of where each appears in this file.
+# Default: pure/read are allowed, write asks. No rule is needed for the common case.
+
+deny = [
+  "run_command:curl *",
+  "run_command:wget *",
+  "run_command:* | sh",
+  "run_command:rm -rf *",
+  "run_command:* > /dev/*",
+]
+
+allow = [
+  "run_command:git status*",
+  "run_command:git diff*",
+  "run_command:pytest*",
+  "run_command:ls*",
+]
+
+# Everything else that writes will ask. With no prompter attached -- CI, cron --
+# asking means refusing.
+ask = []

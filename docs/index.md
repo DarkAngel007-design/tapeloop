@@ -2,7 +2,7 @@
 
 An agent runtime that records every step, so any run can be replayed, forked, and diffed.
 
-> **Pre-alpha (M2 of M9).** The public API does not exist yet. See [ROADMAP](https://github.com/DarkAngel007-design/tapeloop/blob/main/ROADMAP.md).
+> **Pre-alpha (M5 of M9).** The public API does not exist yet. See [ROADMAP](https://github.com/DarkAngel007-design/tapeloop/blob/main/ROADMAP.md).
 
 These docs follow [Diátaxis](https://diataxis.fr) — four modes, kept strictly separate:
 

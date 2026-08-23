@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-24 · **Milestone:** M5 next · **Remote:** `DarkAngel007-design/tapeloop` (private)
+**Updated:** 2026-08-24 · **Milestone:** M6 next · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -13,7 +13,8 @@
 | M2 — streaming, interrupts, retries | ✅ shipped | `test_the_ship_criterion`: two forced 429s *and* a mid-stream cancel in one run |
 | M3 — the tape | ✅ shipped | 100% cache hit and byte-identical tapes on re-run |
 | M4 — replay, fork, diff | ✅ shipped | fork at step 12 replays the prefix in <1s; CLI works |
-| **M5 — sandbox, permissions, resume** | ⬜ **next** | the layer most portfolios skip |
+| M5 — sandbox, permissions, resume | ✅ shipped | hostile-README test: the model obeys the injection, the command does not run |
+| **M6 — eval harness & first numbers** | ⬜ **next** | where it stops being a demo |
 
 ## Confirm the working state
 
@@ -25,28 +26,31 @@ git config core.hooksPath .githooks   # required after a fresh clone
 **After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
 pre-commit secret guard in `.githooks/` is inert until you do.
 
-Expected as of this writing: **72 passed**, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **88 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
-## M5 — what "done" means
+## M6 — what "done" means
 
-**Ship criterion:** a repo file that tries to instruct the agent is refused, and it is a test.
+**Ship criterion:** a committed results table with mean ± spread, and a baseline to regress against.
 
-1. **`DockerExecutor`** behind the `Executor` seam that has been in place since M1 — so this adds
-   a backend rather than rewriting call sites. Read-only mounts outside the workspace, an egress
-   allowlist, no credentials inside.
-2. **Permission rules** per tool *and per argument*: `Bash(git status)` is not `Bash(*)`.
-3. **Prompt-injection defence** — the instruction/data boundary. Tool output is data, never
-   commands, regardless of how authoritative it sounds. The hostile-README test is the gate.
-4. **Workspace snapshotting**, which is what makes `resume` possible as distinct from `replay`
-   (ADR-0006) and upgrades a `simulated` fork to `faithful` (ADR-0016).
-5. `SECURITY.md` — it deliberately does not exist yet, because until now there was nothing
-   truthful to put in it.
+This is the milestone that separates the project from every other "I built an agent" repo. Not
+because evaluation is hard, but because almost nobody publishes numbers with variance.
 
-**Design question to settle first:** what is the permission model's storage? Per-project config,
-per-session memory, or both — and does an approval persist across runs? Getting this wrong makes
-the tool either annoying or unsafe, and it is much cheaper to decide before the sandbox is wired
-in than after.
+1. **~30 domain-neutral tasks** with deterministic graders where possible. File manipulation, data
+   wrangling, API-shaped work. Written by hand, so no model memorized them.
+2. **5 seeds per task.** A single run is not a result — agent runs are high-variance, and a lucky
+   pass proves nothing. Report mean ± spread or report nothing.
+3. **Fork makes this affordable**: shared prefixes replay from cache, so a suite is far cheaper
+   than 150 cold runs. This is the first milestone where M4 pays for itself.
+4. **`--require-faithful` on every eval fork** (ADR-0016). A silently simulated run poisons a table.
+5. **A written failure taxonomy** — named modes, measured frequencies, what changed for each.
+   `docs/evals/failure-taxonomy.md`. This is the artifact a reviewer actually stops on.
+
+**Design question to settle first:** what is the grading contract for a task whose correct output
+is not a fixed string? An `LLM-as-judge` Grader is the obvious answer and introduces
+nondeterminism into the one place that must be trustworthy. Options: judge with a pinned model and
+record the judgment on the tape, or restrict the suite to deterministically-gradable tasks and
+accept narrower coverage. Decide before writing the runner.
 
 ## Environment facts that cost time to rediscover
 
@@ -72,6 +76,8 @@ in than after.
   `.githooks/pre-commit` guard now blocks key-shaped strings from being staged.
 - **Do not use blanket `git add -A` without reading `git status` first.** That is what caused
   the above.
+- **A tape can contain secrets** — it records everything the tools read. `.tapeloop/` is
+  gitignored; review a tape before attaching it to a bug report.
 - **Never write a tape inside the agent's workspace.** The tape becomes something the agent
   observes, so `list_files` differs on the second run, the step key diverges, and replay misses
   for no visible reason. Recording must not change what is recorded.
@@ -89,9 +95,10 @@ in than after.
 
 ## Next action
 
-Start M5: write the permission-storage ADR, then `DockerExecutor`, then permission rules, then the
-hostile-README test, then snapshotting, then `SECURITY.md`.
+Start M6: settle the grading-contract ADR, then the task suite, then the runner with seeded
+repeats, then the first results table, then the failure taxonomy.
 
-**Also pending:** the repo is still private. M4 was the agreed point to flip it public, and the
-headline demo now works. That is a one-line change (`gh repo edit --visibility public`) and the
-author's call.
+**Carried debt from M5:** `SnapshotStore` exists and is tested, but nothing calls it yet. Wiring it
+into `resume` and into fork's `faithful` upgrade (ADR-0016) is a small, well-defined job that was
+deliberately left out of M5 to keep the milestone's ship criterion honest. Do it before or during
+M6 — the eval suite is the first thing that will actually want `resume`.

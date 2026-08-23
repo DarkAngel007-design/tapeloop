@@ -5,6 +5,20 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 
 ## [Unreleased]
 
+### Security
+- **Permission model** (ADR-0017) — `allow` / `ask` / `deny`, per tool *and per argument*, with
+  defaults derived from effect classes. Rules live in `.tapeloop/permissions.toml` so they can be
+  reviewed in a pull request. Decisions are recorded on the tape, so replay never re-prompts and
+  an eval is never interactive.
+- An **unattended run refuses** rather than assuming approval: no prompter means deny.
+- **`DockerExecutor`** behind the M1 `Executor` seam — no network, all capabilities dropped, no
+  new privileges, read-only root, workspace as the sole writable mount, `noexec` tmp. Raises if
+  Docker is absent rather than degrading silently.
+- **`SnapshotStore`** — workspace copies per step, which is what makes `resume` distinct from
+  `replay` (ADR-0006) and what will upgrade a `simulated` fork to `faithful` (ADR-0016).
+- **`SECURITY.md`** and **`docs/explanation/threat-model.md`**, both stating plainly what is *not*
+  claimed — notably that prompt injection is not detected, only made insufficient.
+
 ### Added
 - **`replay/`** — `Recording` reads a tape back (it is self-describing, so no configuration is
   needed beyond a path), `plan_fork` branches at a step, `diff_tapes` compares two runs anchored

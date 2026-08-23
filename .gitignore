@@ -12,9 +12,11 @@ notes-*.md
 
 # ---- tapes ----------------------------------------------------------------
 # Recorded runs are local artifacts; fixtures under tests/ are committed.
+# A tape holds everything the tools read, which may include secrets -- see SECURITY.md.
 .tapeloop/
 runs/
 *.tape.jsonl
+snapshots/
 
 # ---- python ---------------------------------------------------------------
 __pycache__/

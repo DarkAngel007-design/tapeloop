@@ -35,6 +35,8 @@ from tapeloop.record.base import Event, InMemoryStore, TranscriptStore
 from tapeloop.record.cache import StepCache
 from tapeloop.record.codec import encode_message, encode_response
 from tapeloop.record.keys import step_key
+from tapeloop.sandbox.permissions import PermissionPolicy
+from tapeloop.tools.effects import Effect
 from tapeloop.tools.registry import Registry
 
 DEFAULT_SYSTEM = (
@@ -74,6 +76,8 @@ class Agent:
     max_steps: int = 12
     max_tokens: int = 4096
     retry: RetryPolicy = field(default_factory=RetryPolicy)
+    policy: PermissionPolicy | None = None
+    """Gates every tool call. None means the old behaviour: everything runs."""
     cache: StepCache | None = None
     """A previous run's responses, indexed by step key. Turns replay into a lookup."""
 
@@ -161,7 +165,32 @@ class Agent:
             batch: list[ToolResult] = []
             for call in response.message.tool_calls:
                 spec = self.registry.get(call.name)
-                content = self.registry.dispatch(call.name, call.arguments)
+                effect = spec.effect if spec else Effect.WRITE
+
+                if self.policy is not None:
+                    decision = self.policy.decide(call.name, call.arguments, effect)
+                    # Recorded so replay reads the decision instead of asking again.
+                    # A run that prompted a human must still be reproducible.
+                    self.store.append(
+                        Event(
+                            kind="permission",
+                            step=step,
+                            payload={
+                                "tool": call.name,
+                                "verdict": decision.verdict.value,
+                                "rule": decision.rule,
+                            },
+                        )
+                    )
+                    if not decision.allowed:
+                        # A denial is data, not an exception: the model can read it
+                        # and choose something else.
+                        content = f"ERROR: denied by policy ({decision.rule})"
+                    else:
+                        content = self.registry.dispatch(call.name, call.arguments)
+                else:
+                    content = self.registry.dispatch(call.name, call.arguments)
+
                 batch.append(
                     ToolResult(
                         call_id=call.id, content=content, is_error=content.startswith("ERROR:")
@@ -173,7 +202,7 @@ class Agent:
                         step=step,
                         payload={
                             "tool": call.name,
-                            "effect": spec.effect.value if spec else "unknown",
+                            "effect": effect.value,
                             "is_error": batch[-1].is_error,
                         },
                     )
