@@ -3,6 +3,22 @@
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 
+## [0.1.0] — 2026-08-24
+
+First release. All ten roadmap milestones shipped. **The API is not stable**; 0.x is
+the honest signal for that and nothing here should be depended on across versions.
+
+Verified before publishing: built wheel installs and passes the full suite on Python
+3.11, 3.12 and 3.14, and against the declared `openai>=2.0` floor as well as latest.
+
+### Fixed before release
+- **`openai>=1.60` was a broken floor.** `omit` and `ChatCompletionToolUnionParam` do
+  not exist before 2.0, both are used unconditionally, so `pip install` could have
+  resolved a version that fails at import. Floor corrected to `>=2.0` and verified.
+- The version was written in three places. It is now single-sourced from the package,
+  because a drifted copy makes a tape's header claim a writer version that never wrote it.
+- A zero cost rendered as `$0`, which reads as a missing value rather than a free run.
+
 ## [Unreleased]
 
 ### Added

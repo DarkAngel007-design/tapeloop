@@ -21,14 +21,18 @@ from tapeloop.record.base import Event
 from tapeloop.record.canonical import canonical_json
 from tapeloop.record.codec import FORMAT_VERSION, UnsupportedFormat
 
-__version_of_writer__ = "0.0.0"
+
+def _writer_version() -> str:
+    """Single-sourced from the package. A second copy would let a tape claim a
+    writer version that never wrote it."""
+    from tapeloop import __version__
+
+    return __version__
 
 
 def header_line() -> str:
     """The first line of every tape. Fully deterministic — no time, no ids (ADR-0015)."""
-    return canonical_json(
-        {"kind": "header", "v": FORMAT_VERSION, "tapeloop": __version_of_writer__}
-    )
+    return canonical_json({"kind": "header", "v": FORMAT_VERSION, "tapeloop": _writer_version()})
 
 
 class JsonlStore:

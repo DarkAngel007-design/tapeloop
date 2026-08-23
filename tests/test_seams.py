@@ -184,7 +184,10 @@ def test_sdk_exceptions_map_to_the_taxonomy() -> None:
     # openai 3.x vendors its HTTP layer as `httpx2`, not `httpx`. Reaching for the
     # SDK's own dependency keeps this test honest -- it constructs the exact exception
     # type the SDK would raise, rather than a look-alike.
-    import httpx2
+    httpx2 = pytest.importorskip(
+        "httpx2",
+        reason="openai>=3 vendors its HTTP layer as httpx2; the runtime floor is 2.0",
+    )
     import openai
 
     from tapeloop.core.errors import (

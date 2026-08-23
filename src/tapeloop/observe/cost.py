@@ -37,6 +37,9 @@ class Cost:
         """
         if not self.priced or self.usd is None:
             return "—"
+        if self.usd == 0:
+            # Not "$0": a bare zero reads as a missing value rather than a free run.
+            return "$0.00"
         if self.usd >= 0.01:
             return f"${self.usd:,.2f}"
         return f"${self.usd:.3g}"

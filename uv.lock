@@ -708,7 +708,6 @@ wheels = [
 
 [[package]]
 name = "tapeloop"
-version = "0.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "openai" },
@@ -729,7 +728,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "openai", specifier = ">=1.60" },
+    { name = "openai", specifier = ">=2.0" },
     { name = "python-dotenv", specifier = ">=1.2.3" },
     { name = "tiktoken", marker = "extra == 'tokens'", specifier = ">=0.8" },
 ]
