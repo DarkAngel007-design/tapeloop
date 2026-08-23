@@ -1,0 +1,68 @@
+[project]
+name = "tapeloop"
+version = "0.0.0"
+description = "An agent runtime that records every step, so any run can be replayed, forked, and diffed."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["agents", "llm", "replay", "determinism", "tooling"]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+  "openai>=1.60",
+]
+
+[project.urls]
+Homepage = "https://github.com/OWNER/tapeloop"
+Documentation = "https://OWNER.github.io/tapeloop"
+
+[dependency-groups]
+dev = [
+  "pytest>=8",
+  "ruff>=0.8",
+  "pyright>=1.1.390",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tapeloop"]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF", "DTZ", "S"]
+# DTZ + the custom rules below guard Contract 1 (determinism):
+# no naive datetimes, no unseeded randomness reaching a prompt.
+ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+"m0/*" = ["S603", "S607", "T201"]  # the M0 spike shells out and prints on purpose
+"tests/*" = ["S"]
+
+# ---------------------------------------------------------------- pyright
+[tool.pyright]
+include = ["src", "m0", "tests"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+# src/ is strict. m0/ and tests/ opt down to basic with a file-level
+# `# pyright: basic` pragma -- visible in the file rather than hidden in config.
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+  "live: hits a real model API; costs money; deselected by default",
+]

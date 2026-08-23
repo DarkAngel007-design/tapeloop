@@ -1,0 +1,33 @@
+# ---- personal, never committed -------------------------------------------
+# Running logbook for the person building this. Local only, by design.
+LOGBOOK.md
+scratch/
+notes-*.md
+
+# ---- secrets --------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.key
+
+# ---- tapes ----------------------------------------------------------------
+# Recorded runs are local artifacts; fixtures under tests/ are committed.
+.tapeloop/
+runs/
+*.tape.jsonl
+
+# ---- python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.pyright/
+
+# ---- os / editor ----------------------------------------------------------
+.DS_Store
+.idea/
+.vscode/
