@@ -25,3 +25,4 @@ Format: Context (the forces) → Decision (what we chose) → Consequences (what
 | [0015](0015-tapes-contain-no-timestamps.md) | The tape contains no timestamps | Accepted |
 | [0016](0016-fork-declares-its-own-soundness.md) | Fork declares its own soundness from the effects it replayed | Accepted |
 | [0017](0017-permission-model.md) | Permission decisions are events on the tape | Accepted |
+| [0018](0018-pinned-judge.md) | LLM-as-judge, pinned and measured | Accepted |

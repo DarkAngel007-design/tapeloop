@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-24 · **Milestone:** M6 next · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
+**Updated:** 2026-08-24 · **Milestone:** M6 (harness done, baseline pending) · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -14,7 +14,8 @@
 | M3 — the tape | ✅ shipped | 100% cache hit and byte-identical tapes on re-run |
 | M4 — replay, fork, diff | ✅ shipped | fork at step 12 replays the prefix in <1s; CLI works |
 | M5 — sandbox, permissions, resume | ✅ shipped | hostile-README test: the model obeys the injection, the command does not run |
-| **M6 — eval harness & first numbers** | ⬜ **next** | where it stops being a demo |
+| M6 — eval harness | 🚧 **harness shipped, baseline pending** | 100 tests; needs one real run with credits |
+| M7 — context management | ⬜ next | |
 
 ## Confirm the working state
 
@@ -26,31 +27,37 @@ git config core.hooksPath .githooks   # required after a fresh clone
 **After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
 pre-commit secret guard in `.githooks/` is inert until you do.
 
-Expected as of this writing: **88 passed**, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **100 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
-## M6 — what "done" means
+## M6 — what is left
 
-**Ship criterion:** a committed results table with mean ± spread, and a baseline to regress against.
+Everything is built. **One action remains, and it needs API credits:**
 
-This is the milestone that separates the project from every other "I built an agent" repo. Not
-because evaluation is hard, but because almost nobody publishes numbers with variance.
+```bash
+uv run tapeloop eval --model <dated-model-id> --judge-model <dated-judge-id> --repeats 5
+```
 
-1. **~30 domain-neutral tasks** with deterministic graders where possible. File manipulation, data
-   wrangling, API-shaped work. Written by hand, so no model memorized them.
-2. **5 seeds per task.** A single run is not a result — agent runs are high-variance, and a lucky
-   pass proves nothing. Report mean ± spread or report nothing.
-3. **Fork makes this affordable**: shared prefixes replay from cache, so a suite is far cheaper
-   than 150 cold runs. This is the first milestone where M4 pays for itself.
-4. **`--require-faithful` on every eval fork** (ADR-0016). A silently simulated run poisons a table.
-5. **A written failure taxonomy** — named modes, measured frequencies, what changed for each.
-   `docs/evals/failure-taxonomy.md`. This is the artifact a reviewer actually stops on.
+Then commit `evals/latest/results.md` as the baseline, open the failing tapes with
+`tapeloop show`, and fill in the frequency column of `docs/evals/failure-taxonomy.md`.
 
-**Design question to settle first:** what is the grading contract for a task whose correct output
-is not a fixed string? An `LLM-as-judge` Grader is the obvious answer and introduces
-nondeterminism into the one place that must be trustworthy. Options: judge with a pinned model and
-record the judgment on the tape, or restrict the suite to deterministically-gradable tasks and
-accept narrower coverage. Decide before writing the runner.
+Budget note: 13 tasks × 5 seeds = 65 runs, plus 3 judged tasks × 5 seeds × k=3 judgments. Start
+with `--repeats 3 --no-judge` to sanity-check cost, then do the full run once.
+
+Use dated model ids. `gpt-4o-mini` and `gpt-4o-mini-2024-07-18` are different numbers.
+
+## M7 — what "done" means
+
+**Ship criterion:** a task that previously died on context completes, with the eval delta measured.
+
+M6 is what makes M7 measurable — without a baseline there is no way to show compaction helped
+rather than merely ran.
+
+1. Per-step token accounting (`count_tokens` on the seam since M1, currently a crude estimate for
+   OpenAI — that has to become real).
+2. Tool-result truncation with a budget, head+tail elision.
+3. Compaction near the ceiling.
+4. Re-run the M6 suite and publish the delta, in both directions if it hurt.
 
 ## Environment facts that cost time to rediscover
 
@@ -95,10 +102,9 @@ accept narrower coverage. Decide before writing the runner.
 
 ## Next action
 
-Start M6: settle the grading-contract ADR, then the task suite, then the runner with seeded
-repeats, then the first results table, then the failure taxonomy.
+**Run the baseline** (above). That closes M6 and is the single most valuable artifact in the
+project so far — a results table with variance is what almost no comparable repo has.
 
-**Carried debt from M5:** `SnapshotStore` exists and is tested, but nothing calls it yet. Wiring it
-into `resume` and into fork's `faithful` upgrade (ADR-0016) is a small, well-defined job that was
-deliberately left out of M5 to keep the milestone's ship criterion honest. Do it before or during
-M6 — the eval suite is the first thing that will actually want `resume`.
+**Carried debt, still open:** `SnapshotStore` is built and tested but nothing calls it. Wiring it
+into `resume` and into fork's `faithful` upgrade (ADR-0016) is small and well defined. Do it
+alongside M7.

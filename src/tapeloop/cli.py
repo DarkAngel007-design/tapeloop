@@ -128,6 +128,60 @@ def cmd_fork(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_eval(args: argparse.Namespace) -> int:
+    from tapeloop.eval.graders import LlmJudge
+    from tapeloop.eval.report import render_markdown
+    from tapeloop.eval.runner import Attempt, run_suite
+    from tapeloop.eval.suite import build_suite
+    from tapeloop.providers.openai import OpenAIClient
+    from tapeloop.tools import builtin
+
+    client = OpenAIClient()
+    judge = (
+        None if args.no_judge else LlmJudge(client=client, model=args.judge_model, k=args.judge_k)
+    )
+    suite = build_suite(judge=judge)
+    root = Path(args.out)
+
+    def factory(workspace: Path, tape: Path) -> Agent:
+        return Agent(
+            client=client,
+            registry=builtin.build(workspace),
+            model=args.model,
+            store=JsonlStore(tape),
+        )
+
+    def progress(attempt: Attempt) -> None:
+        mark = "." if attempt.passed else ("E" if attempt.error else "x")
+        sys.stderr.write(mark)
+        sys.stderr.flush()
+
+    print(
+        f"{len(suite)} tasks x {args.repeats} seeds"
+        f"{'' if judge is None else f' (judge: {args.judge_model}, k={args.judge_k})'}",
+        file=sys.stderr,
+    )
+    run = run_suite(
+        suite,
+        factory=factory,
+        root=root,
+        repeats=args.repeats,
+        model=args.model,
+        provider=client.provider_id,
+        judge=judge,
+        on_attempt=progress,
+    )
+    sys.stderr.write("\n")
+
+    report = render_markdown(run, suite)
+    out = root / "results.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(report, encoding="utf-8")
+    print(report)
+    print(f"written to {out}", file=sys.stderr)
+    return 0
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     report = diff_tapes(Path(args.a), Path(args.b))
     print(report.render())
@@ -169,6 +223,21 @@ def build_parser() -> argparse.ArgumentParser:
     fork.add_argument("--dry-run", action="store_true", help="report soundness, run nothing")
     fork.add_argument("--quiet", action="store_true")
     fork.set_defaults(func=cmd_fork)
+
+    ev = sub.add_parser("eval", help="run the task suite and write a results table")
+    ev.add_argument("--model", default="gpt-4o-mini")
+    ev.add_argument("--repeats", type=int, default=5, help="seeds per task; 1 is not a result")
+    ev.add_argument(
+        "--judge-model",
+        default="gpt-4o-mini",
+        help="pinned judge (ADR-0018); use a dated id for a real baseline",
+    )
+    ev.add_argument(
+        "--judge-k", type=int, default=3, help="judgments per grade, to measure agreement"
+    )
+    ev.add_argument("--no-judge", action="store_true", help="deterministic tasks only")
+    ev.add_argument("--out", default="evals/latest", help="where workspaces, tapes and results go")
+    ev.set_defaults(func=cmd_eval)
 
     diff = sub.add_parser("diff", help="compare two tapes step by step")
     diff.add_argument("a")

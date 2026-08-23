@@ -5,6 +5,25 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 
 ## [Unreleased]
 
+### Added
+- **Eval harness** — `Task`/`Suite`, a runner with per-seed fresh workspaces, and a report that
+  carries **mean ± spread**. A single run is not a result.
+- **13 hand-written, held-out tasks** (`starter-v1`), plus 3 judged ones. Graded on the workspace
+  rather than the agent's account of itself, and including two **refusal tasks** where success
+  means declining.
+- **`LlmJudge`** under ADR-0018: model pinned and recorded, judged `k` times with **agreement**
+  reported, unparseable verdicts treated as FAIL, and judged results never blended into the
+  deterministic headline.
+- **`PythonBehaviour`** grader — runs the code instead of grepping it.
+- **`tapeloop eval`**, and `docs/evals/{methodology,failure-taxonomy}.md`.
+- **`test_no_task_is_passable_by_doing_nothing`** — the suite runs against a do-nothing model in
+  CI, because a grader such a model can pass is a grader that tests nothing.
+
+### Fixed
+- `fix-the-bug` asserted that `calc.py` still contained `def average`, which its own setup
+  guaranteed — so an agent doing nothing scored 1.0. Caught by the machinery check on its first
+  run; it now executes the code and asserts `average([]) == 0`.
+
 ### Security
 - **Permission model** (ADR-0017) — `allow` / `ask` / `deny`, per tool *and per argument*, with
   defaults derived from effect classes. Rules live in `.tapeloop/permissions.toml` so they can be
