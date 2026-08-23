@@ -54,5 +54,5 @@ is not.
   CLI or the report shape has to change.
 - A tool declared `read` that actually writes silently produces a `faithful` label on a fork that
   is not. That is the same trust the whole replay model already places in effect declarations —
-  which is why an undeclared tool defaults to `write`, and why `CLAUDE.md` forbids widening a
+  which is why an undeclared tool defaults to `write`, and why `AGENTS.md` forbids widening a
   class to make a test pass.

@@ -264,7 +264,7 @@ BANNED = {
 
 
 def test_determinism_lint() -> None:
-    """Contract 1, enforced by CI rather than by discipline (CLAUDE.md).
+    """Contract 1, enforced by CI rather than by discipline (AGENTS.md).
 
     A wall-clock read or an unseeded random inside src/ breaks replay silently.
     `random.Random(seed)` is fine — it is an instance, not the global stream — and

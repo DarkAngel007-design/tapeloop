@@ -28,4 +28,4 @@ finer distinctions (idempotent-write, append-only) did not change any replay dec
 
 - Misdeclaring a tool is the one way to silently corrupt a replay. The conservative default plus
   a lint rule for undeclared tools is the guard.
-- Never widen a tool's class to make a test pass. That is written into `CLAUDE.md`.
+- Never widen a tool's class to make a test pass. That is written into `AGENTS.md`.

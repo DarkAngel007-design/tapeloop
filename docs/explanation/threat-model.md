@@ -51,7 +51,7 @@ the tape.
 
 **Effect declarations are trusted.** A tool declared `read` that writes will produce a `faithful`
 label on a fork that is not (ADR-0016). This is why an undeclared tool defaults to `write`, and why
-`CLAUDE.md` forbids widening a class to make a test pass. It is a code-review property, not a
+`AGENTS.md` forbids widening a class to make a test pass. It is a code-review property, not a
 technical control.
 
 ## Where the boundary actually sits

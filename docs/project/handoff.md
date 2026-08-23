@@ -13,7 +13,7 @@ Read these first, in order:
   1. docs/project/charter.md   — what we're building and what's out of scope
   2. docs/project/state.md     — exactly where we are and the next action
   3. ROADMAP.md                — milestones and their ship criteria
-  4. CLAUDE.md                 — the rules for changing code here
+  4. AGENTS.md                 — the rules for changing code here
   5. docs/adr/README.md        — the decision index; read any ADR a task touches
 
 Then confirm the working state by running:

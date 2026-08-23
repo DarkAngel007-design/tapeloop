@@ -1,6 +1,6 @@
 """Retry policy: exponential backoff with jitter, honouring Retry-After.
 
-**On determinism.** CLAUDE.md bans unseeded randomness in ``src/`` because it breaks
+**On determinism.** AGENTS.md bans unseeded randomness in ``src/`` because it breaks
 replay (Contract 1). Jitter is the exception, and the reason it is safe is specific:
 retry timing is transport-level. It never reaches a prompt, never reaches a step key,
 and never appears on the tape. The policy still owns a *seeded* ``random.Random``

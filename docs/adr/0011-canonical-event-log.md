@@ -26,4 +26,4 @@ The harness never inspects, rewrites, or migrates an opaque payload.
 - Opaque payloads are dropped when forking to a *different* provider, because they are meaningless
   there. This must be surfaced in the fork output, not silently swallowed.
 - Nothing outside `src/tapeloop/providers/` may reference a wire format. Enforced by review and
-  written into `CLAUDE.md`.
+  written into `AGENTS.md`.

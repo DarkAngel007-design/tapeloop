@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Conventions for agents working in this repository.
+Conventions for any coding agent working in this repository.
 
 ## What this project is
 
