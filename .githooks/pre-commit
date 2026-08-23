@@ -1,0 +1,25 @@
+#!/bin/sh
+# Block secret-shaped strings from being committed.
+#
+# This exists because a real OpenAI key was once pasted into .env.example -- a file
+# that is committed by design -- and a blanket `git add -A` swept it into history.
+# Rotating the key was easy; purging six commits was not. Prevention is cheaper.
+#
+# Install: git config core.hooksPath .githooks   (already set for this clone)
+
+patterns='sk-proj-[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+
+if git diff --cached -U0 | grep -E "^\+" | grep -qE "$patterns"; then
+    echo "pre-commit: BLOCKED — staged changes contain something shaped like a secret." >&2
+    echo >&2
+    git diff --cached -U0 --name-only | while read -r f; do
+        if git diff --cached -U0 -- "$f" | grep -E "^\+" | grep -qE "$patterns"; then
+            echo "  $f" >&2
+        fi
+    done
+    echo >&2
+    echo "  Unstage it, replace with a placeholder, and rotate the credential." >&2
+    echo "  Override only if you are certain it is a false positive:" >&2
+    echo "      git commit --no-verify" >&2
+    exit 1
+fi
