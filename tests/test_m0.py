@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -183,3 +184,30 @@ def test_path_traversal_is_refused(workspace: Path, monkeypatch: pytest.MonkeyPa
     out = mod.dispatch("write_file", {"path": "../escaped.txt", "content": "x"}, confirm=False)
     assert out.startswith("ERROR: ValueError")
     assert not (workspace.parent / "escaped.txt").exists()
+
+
+def test_dotenv_is_actually_loaded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression: M0 shipped telling people to create .env, but never loaded it.
+
+    The docs said 'copy .env.example to .env' while the code only read os.environ,
+    so the file sat there doing nothing and the run died on a missing key.
+    """
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("TAPELOOP_YOLO", "1")
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".env").write_text("OPENAI_API_KEY=from-dotenv-file\n", encoding="utf-8")
+
+    fake = _FakeCompletions([_response(content="done", tool_calls=None, finish="stop")])
+    mod = _load()
+    monkeypatch.setattr(
+        mod, "OpenAI", lambda *a, **k: SimpleNamespace(chat=SimpleNamespace(completions=fake))
+    )
+    monkeypatch.setattr(mod, "WORKSPACE", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["loop.py", "say done"])
+
+    assert mod.main() == 0, "main() exited early -- .env was not loaded"
+
+    # Compare into a bool first. Asserting on the value directly makes pytest print
+    # it on failure, which is how a real key ends up in a CI log.
+    came_from_tmp_env = os.environ.get("OPENAI_API_KEY") == "from-dotenv-file"
+    assert came_from_tmp_env, "OPENAI_API_KEY did not come from the temporary .env"

@@ -16,8 +16,7 @@ here is hand-written on purpose:
 Do not refactor this file. Its ugliness is the point: when M1 replaces it, the
 diff is the lesson.
 
-Usage:
-    uv run python m0/loop.py "count the python files here, write it to count.txt"
+Usage: uv run python m0/loop.py "<task>"    (see m0/README.md)
 """
 
 from __future__ import annotations
@@ -29,7 +28,12 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
+from dotenv import find_dotenv, load_dotenv
 from openai import OpenAI
+
+# usecwd=True: find .env from where the command was run, not from this file's
+# directory. Must run BEFORE the settings below are read, not inside main().
+load_dotenv(find_dotenv(usecwd=True))
 
 MODEL = os.environ.get("TAPELOOP_MODEL", "gpt-4o-mini")
 WORKSPACE = Path(os.environ.get("TAPELOOP_WORKSPACE", ".")).resolve()
@@ -184,23 +188,10 @@ def main() -> int:
             fn = tc.function  # type: ignore[union-attr]
             print(f"     -> {fn.name}({fn.arguments[:80]})", file=sys.stderr)
             try:
-                parsed = json.loads(fn.arguments or "{}")
+                content = dispatch(fn.name, json.loads(fn.arguments or "{}"), confirm=confirm)
             except json.JSONDecodeError as e:
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": f"ERROR: arguments were not valid JSON: {e}",
-                    }
-                )
-                continue
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "content": dispatch(fn.name, parsed, confirm=confirm),
-                }
-            )
+                content = f"ERROR: arguments were not valid JSON: {e}"
+            messages.append({"role": "tool", "tool_call_id": tc.id, "content": content})
     else:
         print(f"stopped: hit MAX_STEPS={MAX_STEPS}", file=sys.stderr)
 
