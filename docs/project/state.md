@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-23 · **Milestone:** M3 next · **Commits:** 5, local only, no remote
+**Updated:** 2026-08-23 · **Milestone:** M3 next · **Remote:** `DarkAngel007-design/tapeloop` (private)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -17,7 +17,11 @@
 
 ```bash
 uv sync && uv run pytest && uv run ruff check . && uv run pyright
+git config core.hooksPath .githooks   # required after a fresh clone
 ```
+
+**After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
+pre-commit secret guard in `.githooks/` is inert until you do.
 
 Expected as of this writing: **44 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
@@ -62,6 +66,11 @@ tape exists on someone's disk, that document is a compatibility promise.
   fixture that scrubs the environment for every test. Do not remove that fixture.
 - **Never assert directly on a secret-shaped value.** pytest renders both sides of a failed
   comparison, which is how a live API key gets printed. Compare into a bool, then assert the bool.
+- **`.env.example` is committed by design — never put a real key in it.** One was pasted there
+  and swept into six commits by a blanket `git add -A`; the history had to be rewritten. The
+  `.githooks/pre-commit` guard now blocks key-shaped strings from being staged.
+- **Do not use blanket `git add -A` without reading `git status` first.** That is what caused
+  the above.
 - **Settings read at import time will not see `.env`** unless `load_dotenv()` runs first, at
   module level. The failure mode is silent: the wrong model, no error.
 - **`get_type_hints` cannot resolve a type declared inside a function** without `localns`. Tool

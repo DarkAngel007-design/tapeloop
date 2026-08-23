@@ -29,6 +29,12 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 - Vendor extensions from a provider are captured generically via `model_extra` as opaque
   payloads, rather than naming individual fields.
 
+### Security
+- A real OpenAI key had been pasted into the committed `.env.example` and reached six commits.
+  History was rewritten to purge it, verified against a fresh clone. The key had already been
+  rotated. A tracked `.githooks/pre-commit` guard now blocks key-shaped strings from being staged,
+  and `core.hooksPath` points at it.
+
 ### Fixed
 - `get_type_hints` could not resolve types declared inside a factory function — the normal case
   for tool packs. The registry now passes the calling frame's locals as `localns`.
