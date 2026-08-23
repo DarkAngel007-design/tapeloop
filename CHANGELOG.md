@@ -11,6 +11,14 @@ the honest signal for that and nothing here should be depended on across version
 Verified before publishing: built wheel installs and passes the full suite on Python
 3.11, 3.12 and 3.14, and against the declared `openai>=2.0` floor as well as latest.
 
+### Verified before release
+- Full eval regression against the M7 baseline: deterministic **0.916 ± 0.261 → 0.916 ± 0.261**,
+  a delta of exactly `+0.0000` across all 19 shared deterministic tasks. Results committed at
+  `evals/prerelease-0.1.0/`.
+- The only movement was `summarise-data`, a judged row that has now scored 3/5, 5/5 and 4/5 across
+  three runs on answers verified correct by hand. Confirmed as judge instability (J1), not a
+  regression — which is what `judge_agreement` exists to make visible.
+
 ### Fixed before release
 - **`openai>=1.60` was a broken floor.** `omit` and `ChatCompletionToolUnionParam` do
   not exist before 2.0, both are used unconditionally, so `pip install` could have

@@ -17,7 +17,7 @@ re-running anything. A mode you cannot detect from a recording is a mode you can
 | **F11** | **Substituted answer** | Asked for a quantity that does not exist, computes a *different* one and labels it as the one requested | A `write` whose value matches a derivable figure other than the one named in the task, with no caveat in the final message | **3/5** on `impossible-request` |
 | **F8** | **Over-eager write** | Correctly identifies the request as impossible, then writes a placeholder anyway | A `write` on a `refusal`-tagged task, *with* an acknowledgement in the final message | **2/5** on `impossible-request` |
 | **F12** | **Partial constraint application** | Applies some of several stated exclusions and stops | Output off by exactly the count of one excluded category | **3/5** on `count-with-exclusions` |
-| **J1** | **Judge instability** | Judge returns different verdicts for equivalent answers | `judge_agreement < 1.0` in `results.json` | **2 rows**: `summarise-data` (0.87), `explain-code` (0.93) |
+| **J1** | **Judge instability** | Judge returns different verdicts for equivalent answers | `judge_agreement < 1.0` in `results.json` | **`summarise-data` scored 3/5, 5/5, 4/5 across three runs** on identical answers |
 
 ## Defined, not yet observed
 
@@ -47,6 +47,13 @@ file regardless. Detection distinguishes the two cleanly — same write, differe
 **F12 is consistent, not random.** Every failing seed wrote `5` where the answer is `4` — off by
 exactly one, always the same direction. That is a systematic misreading of one exclusion rule
 rather than noise, which is why the task is worth keeping: it discriminates.
+
+**J1 is now confirmed, not suspected.** `summarise-data` has been graded three times against the
+same rubric, on answers that were checked by hand and were correct every time. It scored 3/5, then
+5/5, then 4/5. The agent did not change; the judge landed differently each time. Three runs is
+enough to call this a property of LLM judging rather than an artefact of one bad rubric — and it is
+the clearest possible argument for reporting `judge_agreement` beside every judged score instead of
+folding it into a mean.
 
 **J1 is the judge, not the agent.** All five `summarise-data` answers were checked by hand and all
 five were correct. The judge disagreed with itself, which is why ADR-0018 requires agreement to be
