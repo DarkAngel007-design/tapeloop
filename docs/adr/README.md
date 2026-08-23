@@ -20,3 +20,4 @@ Format: Context (the forces) → Decision (what we chose) → Consequences (what
 | [0010](0010-transcript-versioning.md) | Transcript schema versioning and migration policy | Accepted |
 | [0011](0011-canonical-event-log.md) | Canonical event log, with opaque provider payloads | Accepted |
 | [0012](0012-chat-completions-over-responses.md) | Chat Completions over the Responses API | Accepted |
+| [0013](0013-hand-rolled-schema-generation.md) | Hand-rolled schema generation instead of pydantic | Accepted |

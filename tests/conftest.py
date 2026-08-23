@@ -24,9 +24,7 @@ _VARS = (
 
 
 @pytest.fixture(autouse=True)
-def _isolate_environment(  # pyright: ignore[reportUnusedFunction]
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _isolate_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     for name in _VARS:
         monkeypatch.delenv(name, raising=False)

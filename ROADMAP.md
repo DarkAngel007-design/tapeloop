@@ -7,19 +7,20 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
 
 ---
 
-- [~] **M0 — Bare loop**
+- [x] **M0 — Bare loop**
       Raw SDK, three hand-written schemas, one file, no abstractions. Deliberately ugly.
       **Ship when:** <150 lines, completes a two-tool task, no framework.
-      *Status: 148 code lines ✅ · no framework ✅ · two-tool task passes against a fake client ✅
-      · **not yet run against a live model** — that is the one remaining item.*
+      *Shipped 2026-08-23: 137 code lines · no framework · two-tool task verified against a
+      fake client and against a live model.*
 
-- [ ] **M1 — Tool registry, effect classes, four seams**
+- [x] **M1 — Tool registry, effect classes, four seams**
       Schema generation from typed signatures, emitting the strictest schema every target
       provider accepts. Effect declaration on every tool. The four Protocols, with the OpenAI
       adapter implemented and the Anthropic adapter as *type signatures only* — a design check
       that costs nothing and catches a provider-shaped abstraction immediately.
       **Ship when:** adding a tool is one decorated function; zero hand-written JSON Schema;
       the unimplemented Anthropic adapter type-checks.
+      *Shipped 2026-08-23: all three verified. 27 tests, zero API spend. pyright strict clean.*
 
 - [ ] **M2 — Streaming, interrupts, retries**
       Token-by-token render, partial-JSON accumulation for tool arguments, clean mid-stream

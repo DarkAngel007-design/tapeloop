@@ -57,6 +57,9 @@ include = ["src", "m0", "tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
+# Registration decorators (@registry.tool, @pytest.fixture(autouse=True)) define
+# functions that are never called by name. That is the pattern, not a mistake.
+reportUnusedFunction = false
 # src/ is strict. m0/ and tests/ opt down to basic with a file-level
 # `# pyright: basic` pragma -- visible in the file rather than hidden in config.
 
