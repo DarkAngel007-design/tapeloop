@@ -75,6 +75,25 @@ tapeloop fork run-001.jsonl "..." --at 12 --model claude-opus-5
 Payloads meaningful only to the original provider are dropped, and the fork says so rather than
 doing it quietly.
 
+## Results
+
+A baseline exists, with variance, from a suite written by hand and held out.
+
+| | Tasks | Mean | Spread |
+|---|---:|---:|---:|
+| deterministic | 18 | **0.911** | ± 0.268 |
+| judged | 3 | 0.867 | ± 0.231 |
+
+`gpt-5.4-mini-2026-03-17`, 5 seeds per task, 105 runs. Judged rows are reported separately and
+never blended into the headline; two were flagged unreliable because the judge disagreed with
+itself. Full table and the auditable per-judgment record:
+[`evals/baseline-2026-08-24/`](evals/baseline-2026-08-24/).
+
+The score is the least interesting part. The
+[failure taxonomy](docs/evals/failure-taxonomy.md) is where the work is — for instance, asked to
+compute an average from a column that does not exist, the model computed the average *salary*
+instead, wrote it to the requested file, and reported success with no hedge. Three times in five.
+
 ## Design
 
 Five contracts hold the whole thing up:

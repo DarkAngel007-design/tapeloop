@@ -35,6 +35,9 @@ class Attempt:
     tape: Path | None = None
     error: str | None = None
     judge_agreement: float | None = None
+    judgments: list[tuple[bool, str]] = field(default_factory=list[tuple[bool, str]])
+    """Every judgment verbatim. ADR-0018: a score you cannot audit is one you cannot defend."""
+    grade_reasons: list[str] = field(default_factory=list[str])
 
     @property
     def score(self) -> float:
@@ -94,8 +97,13 @@ def run_task(
     for grader in task.graders:
         grade = grader.grade(expected=task.expected or task.prompt, actual=actual)
         attempt.grades.append(grade)
+        if grade.reason:
+            attempt.grade_reasons.append(grade.reason)
         if isinstance(grader, LlmJudge):
             attempt.judge_agreement = _agreement(grade)
+            # Copied now: the grader instance is shared across attempts and its
+            # judgments are overwritten by the next one.
+            attempt.judgments = [(j.passed, j.reason) for j in grader.judgments]
     # Every grader must pass. A task with two requirements is not half-done.
     attempt.passed = bool(attempt.grades) and all(g.passed for g in attempt.grades)
     return attempt

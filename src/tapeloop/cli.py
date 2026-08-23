@@ -130,7 +130,7 @@ def cmd_fork(args: argparse.Namespace) -> int:
 
 def cmd_eval(args: argparse.Namespace) -> int:
     from tapeloop.eval.graders import LlmJudge
-    from tapeloop.eval.report import render_markdown
+    from tapeloop.eval.report import render_markdown, write_results
     from tapeloop.eval.runner import Attempt, run_suite
     from tapeloop.eval.suite import build_suite
     from tapeloop.providers.openai import OpenAIClient
@@ -173,12 +173,12 @@ def cmd_eval(args: argparse.Namespace) -> int:
     )
     sys.stderr.write("\n")
 
-    report = render_markdown(run, suite)
-    out = root / "results.md"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(report, encoding="utf-8")
-    print(report)
-    print(f"written to {out}", file=sys.stderr)
+    md, js = write_results(run, suite, root)
+    print(render_markdown(run, suite))
+    total_in = sum(a.input_tokens for a in run.attempts)
+    total_out = sum(a.output_tokens for a in run.attempts)
+    print(f"tokens: {total_in} in / {total_out} out", file=sys.stderr)
+    print(f"written to {md} and {js}", file=sys.stderr)
     return 0
 
 
@@ -186,6 +186,12 @@ def cmd_diff(args: argparse.Namespace) -> int:
     report = diff_tapes(Path(args.a), Path(args.b))
     print(report.render())
     return 0 if report.identical else 1
+
+
+def _default_model() -> str:
+    import os
+
+    return os.environ.get("TAPELOOP_MODEL", "gpt-4o-mini")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -196,7 +202,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run = sub.add_parser("run", help="run a task, recording a tape")
     run.add_argument("task")
-    run.add_argument("--model", default="gpt-4o-mini")
+    run.add_argument("--model", default=_default_model())
     run.add_argument("--workspace", default=".")
     run.add_argument("--tapes", default=".tapeloop", help="directory for tapes")
     run.add_argument("--tape", help="explicit tape path")
@@ -225,11 +231,11 @@ def build_parser() -> argparse.ArgumentParser:
     fork.set_defaults(func=cmd_fork)
 
     ev = sub.add_parser("eval", help="run the task suite and write a results table")
-    ev.add_argument("--model", default="gpt-4o-mini")
+    ev.add_argument("--model", default=_default_model())
     ev.add_argument("--repeats", type=int, default=5, help="seeds per task; 1 is not a result")
     ev.add_argument(
         "--judge-model",
-        default="gpt-4o-mini",
+        default=_default_model(),
         help="pinned judge (ADR-0018); use a dated id for a real baseline",
     )
     ev.add_argument(
@@ -247,6 +253,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    # The CLI is the right place for this, not the library: a library that mutates
+    # os.environ on import is a library that surprises its host. Same bug as M0 had
+    # -- the docs said "copy .env.example to .env" while nothing read the file.
+    from dotenv import find_dotenv, load_dotenv
+
+    load_dotenv(find_dotenv(usecwd=True))
     args = build_parser().parse_args(argv)
     return int(args.func(args))
 

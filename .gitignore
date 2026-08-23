@@ -18,6 +18,10 @@ runs/
 *.tape.jsonl
 snapshots/
 
+# Eval runs: results.md is committed as the baseline, the raw material is not.
+evals/*/workspaces/
+evals/*/tapes/
+
 # ---- python ---------------------------------------------------------------
 __pycache__/
 *.py[cod]

@@ -1,6 +1,6 @@
 # Current state
 
-**Updated:** 2026-08-24 · **Milestone:** M6 (harness done, baseline pending) · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
+**Updated:** 2026-08-24 · **Milestone:** M7 next · **Remote:** `DarkAngel007-design/tapeloop` (**public** since M4)
 
 > This file is the handoff. Update it at the end of every session, before anything else.
 
@@ -14,8 +14,8 @@
 | M3 — the tape | ✅ shipped | 100% cache hit and byte-identical tapes on re-run |
 | M4 — replay, fork, diff | ✅ shipped | fork at step 12 replays the prefix in <1s; CLI works |
 | M5 — sandbox, permissions, resume | ✅ shipped | hostile-README test: the model obeys the injection, the command does not run |
-| M6 — eval harness | 🚧 **harness shipped, baseline pending** | 100 tests; needs one real run with credits |
-| M7 — context management | ⬜ next | |
+| M6 — eval harness & baseline | ✅ shipped | 0.911 ± 0.268 deterministic, committed with the model id |
+| **M7 — context management** | ⬜ **next** | first milestone that can be measured against a baseline |
 
 ## Confirm the working state
 
@@ -29,22 +29,6 @@ pre-commit secret guard in `.githooks/` is inert until you do.
 
 Expected as of this writing: **100 passed**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
-
-## M6 — what is left
-
-Everything is built. **One action remains, and it needs API credits:**
-
-```bash
-uv run tapeloop eval --model <dated-model-id> --judge-model <dated-judge-id> --repeats 5
-```
-
-Then commit `evals/latest/results.md` as the baseline, open the failing tapes with
-`tapeloop show`, and fill in the frequency column of `docs/evals/failure-taxonomy.md`.
-
-Budget note: 13 tasks × 5 seeds = 65 runs, plus 3 judged tasks × 5 seeds × k=3 judgments. Start
-with `--repeats 3 --no-judge` to sanity-check cost, then do the full run once.
-
-Use dated model ids. `gpt-4o-mini` and `gpt-4o-mini-2024-07-18` are different numbers.
 
 ## M7 — what "done" means
 
@@ -104,8 +88,13 @@ rather than merely ran.
 
 ## Next action
 
-**Run the baseline** (above). That closes M6 and is the single most valuable artifact in the
-project so far — a results table with variance is what almost no comparable repo has.
+Start M7. It is the first milestone that can be *measured*: re-run
+`uv run tapeloop eval --repeats 5` afterwards and compare against
+`evals/baseline-2026-08-24/`. A change that moves the deterministic mean by more than one spread
+(0.268) gets investigated before merging, not explained afterwards.
+
+Note the two known-failing tasks are findings about the model, not bugs to fix:
+`impossible-request` 0/5 and `count-with-exclusions` 2/5. Do not tune the suite to make them pass.
 
 **Carried debt, still open:** `SnapshotStore` is built and tested but nothing calls it. Wiring it
 into `resume` and into fork's `faithful` upgrade (ADR-0016) is small and well defined. Do it

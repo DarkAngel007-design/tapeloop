@@ -7,8 +7,10 @@ LLM judging can discount that half without recomputing anything.
 
 from __future__ import annotations
 
+import json
 import statistics
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from tapeloop.eval.runner import Attempt, SuiteRun
@@ -130,3 +132,41 @@ def render_markdown(run: SuiteRun, suite: Suite) -> str:
             f"{r.mean:.2f} | ± {r.stdev:.2f} | {r.mean_steps:.1f} | {r.errors} | {agr} |"
         )
     return "\n".join(lines) + "\n"
+
+
+def write_results(run: SuiteRun, suite: Suite, directory: Path) -> tuple[Path, Path]:
+    """Write both the human table and the auditable record.
+
+    ADR-0018 requires the judgment itself, not just a boolean. The markdown is what
+    a reader looks at; the JSON is what someone checks when they doubt a row.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    md = directory / "results.md"
+    md.write_text(render_markdown(run, suite), encoding="utf-8")
+
+    detail = {
+        "suite": run.suite,
+        "model": run.model,
+        "provider": run.provider,
+        "judge_model": run.judge_model,
+        "judge_prompt_version": run.judge_prompt_version,
+        "headline": headline(summarize(run, suite)),
+        "attempts": [
+            {
+                "task": a.task_id,
+                "seed": a.seed,
+                "passed": a.passed,
+                "steps": a.steps,
+                "input_tokens": a.input_tokens,
+                "output_tokens": a.output_tokens,
+                "error": a.error,
+                "grade_reasons": a.grade_reasons,
+                "judgments": [{"passed": p, "reason": r} for p, r in a.judgments],
+                "tape": a.tape.name if a.tape else None,
+            }
+            for a in run.attempts
+        ],
+    }
+    js = directory / "results.json"
+    js.write_text(json.dumps(detail, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return md, js

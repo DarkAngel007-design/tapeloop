@@ -6,6 +6,24 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 ## [Unreleased]
 
 ### Added
+- **First baseline** — `evals/baseline-2026-08-24/`, committed with the dated model id that
+  produced it. Deterministic 0.911 ± 0.268 over 18 tasks; judged 0.867 ± 0.231 over 3.
+- **`results.json`** alongside `results.md` — every judgment verbatim, per attempt. The markdown
+  is what a reader looks at; the JSON is what someone checks when they doubt a row. This closes a
+  gap where ADR-0018 required recorded judgments and the implementation recorded none.
+- **Five harder tasks.** The first baseline scored 13/13 with zero spread — a suite that cannot
+  detect a regression. Added a decoy file, a three-file rename, a count with exclusions whose
+  naive answer is wrong, an edit that must preserve its surroundings, and a request that cannot
+  be satisfied.
+
+### Fixed
+- The CLI never loaded `.env` — the same bug M0 had, repeated in the library. Fixed in
+  `cli.main()` rather than the library, since a library that mutates `os.environ` on import
+  surprises its host. `--model` now also defaults from `TAPELOOP_MODEL`.
+- The `summarise-data` rubric demanded detail the prompt never asked for, so the judge failed
+  correct answers and disagreed with itself doing it. Grades only what was requested now.
+
+### Added
 - **Eval harness** — `Task`/`Suite`, a runner with per-seed fresh workspaces, and a report that
   carries **mean ± spread**. A single run is not a result.
 - **13 hand-written, held-out tasks** (`starter-v1`), plus 3 judged ones. Graded on the workspace

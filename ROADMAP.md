@@ -49,13 +49,14 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done
       *Shipped 2026-08-24: `test_ship_criterion_a_hostile_file_cannot_make_the_agent_act`.
       Plus ADR-0017, SECURITY.md, and a stated threat model. 88 tests.*
 
-- [~] **M6 — Eval harness & first numbers**
+- [x] **M6 — Eval harness & first numbers**
       ~30 domain-neutral tasks, deterministic graders, 5 seeds each. Fork makes this cheap.
       **Ship when:** a committed results table with mean ± spread, and a baseline to regress against.
-      *2026-08-24: harness, 13 hand-written tasks (+3 judged), pinned-judge grading, runner,
-      report, `tapeloop eval`, methodology and failure taxonomy all landed. 100 tests.
-      **Remaining: run it against a real model.** Everything to date used fakes; the baseline
-      needs credits and is the author's to produce.*
+      *Shipped 2026-08-24. Baseline: `gpt-5.4-mini-2026-03-17`, 21 tasks x 5 seeds, deterministic
+      0.911 ± 0.268 and judged 0.867 ± 0.231, committed at `evals/baseline-2026-08-24/`.
+      The first run scored 13/13 ± 0.00 — no discriminating power — so five harder tasks were
+      added before freezing a baseline. Failure taxonomy filled in from real tapes; F11 and F12
+      are new modes found by this run.*
 
 - [ ] **M7 — Context management**
       Per-step token accounting, tool-result truncation budgets, compaction near the ceiling.
