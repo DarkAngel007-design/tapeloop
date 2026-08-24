@@ -145,7 +145,23 @@ the agent observes, so a directory listing differs on the second run and replay 
 visible reason. The default `--tapes .tapeloop` is fine as long as the agent has no reason to
 list it.
 
-There is no sandbox until M5. Do not point this at untrusted input.
+### Read this before pointing it at anything you care about
+
+**The defaults protect you from accidents, not from adversaries.** A bare `Agent(...)` has
+`policy=None` and uses `SubprocessExecutor`, which means model-authored shell commands run on your
+host with no permission gate and no isolation. That is deliberate — a container that silently
+failed to start would be worse than one you knowingly did not use (ADR-0007) — but it is opt-in
+safety, not opt-out.
+
+For anything untrusted, attach both:
+
+```python
+Agent(..., policy=PermissionPolicy.load(Path(".tapeloop/permissions.toml")))
+# and pass DockerExecutor() to your tool pack
+```
+
+See [SECURITY.md](SECURITY.md) and [the threat model](docs/explanation/threat-model.md), which
+state what is *not* claimed as carefully as what is.
 
 ### M0, the teaching spike
 

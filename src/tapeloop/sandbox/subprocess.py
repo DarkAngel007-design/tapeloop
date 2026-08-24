@@ -22,7 +22,11 @@ class SubprocessExecutor:
 
     def run(self, command: str, *, cwd: Path, timeout: float = 60.0) -> ExecResult:
         try:
-            proc = subprocess.run(  # noqa: S602 - no isolation until M5, see ADR-0007
+            # The suppression below is deliberate and permanent for this backend.
+            # shell=True on model-authored input is the whole hazard, which is why
+            # `isolation` names it and why DockerExecutor exists. This remains the
+            # DEFAULT: M5 added an alternative, it did not replace this (ADR-0007).
+            proc = subprocess.run(  # noqa: S602
                 command,
                 shell=True,
                 cwd=cwd,

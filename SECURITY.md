@@ -10,6 +10,25 @@ Open a [GitHub security advisory](https://github.com/DarkAngel007-design/tapeloo
 Please do not open a public issue for anything exploitable. This is a pre-1.0 personal project;
 expect a reply in days, not hours.
 
+## The defaults
+
+Stated first, because the rest of this document describes mechanisms that are **opt-in**, and a
+security document that describes protections without saying they are off by default is worse than
+no document.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Agent.policy` | `None` | **No permission gating.** Every tool call the model makes is executed. |
+| `Agent.budget` | `None` | No truncation, no compaction. |
+| Executor | `SubprocessExecutor` | `shell=True` on your host. No isolation of any kind. |
+
+So a bare `Agent(...)` runs model-authored shell commands on your machine, unrestricted. That is
+deliberate — see ADR-0007 on why a container that silently failed to start would be worse than one
+you knowingly did not use — but it is **opt-in safety, not opt-out**.
+
+For anything you do not fully control, attach a `PermissionPolicy` *and* a `DockerExecutor`. Neither
+alone is sufficient: the policy decides what may run, the executor decides what running can reach.
+
 ## What the sandbox actually protects against
 
 Isolation is a ladder, and a run records which rung it was on — a recorded run must never be able
@@ -40,6 +59,8 @@ ship criterion for this milestone is exactly that test: the model dutifully atte
 
 Practical consequences:
 
+- **Attach a policy at all.** With `policy=None` there is nothing to deny with, and the paragraph
+  above does not apply — the model's request goes straight to the tool.
 - **Deny by default for anything that reaches outside the workspace.** Set rules in
   `.tapeloop/permissions.toml`; commit the file so changes get reviewed.
 - **An unattended run with no prompter refuses** rather than assuming approval. Assuming yes is how
@@ -57,6 +78,13 @@ A pre-commit hook blocks key-shaped strings. Git does not install hooks on clone
 ```bash
 git config core.hooksPath .githooks
 ```
+
+## Running the eval suite
+
+`PythonBehaviour`, the grader that checks a code-change task, **executes the code the agent wrote,
+in-process and unsandboxed**. That is inherent to the job — you cannot verify a fix works without
+running it — but it is arbitrary code execution. It is reachable only from the eval suite and never
+from the agent loop. Run evals in a container, on tasks you wrote, against workspaces you control.
 
 ## Tapes
 

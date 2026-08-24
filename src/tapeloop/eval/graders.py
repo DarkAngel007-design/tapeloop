@@ -64,6 +64,14 @@ class PythonBehaviour:
     that did nothing at all: its grader looked for text that the setup already
     contained. A substring check on a file you also seeded proves nothing. For a
     code-change task, run the code.
+
+    **Security: this executes code the agent wrote, in this process, unsandboxed.**
+    That is inherent to grading a code-change task -- you cannot check that a fix
+    works without running it -- but it is arbitrary code execution and is stated
+    here rather than left implicit behind a lint suppression. It is reachable only
+    from the eval suite, never from the agent loop. Run evals on tasks you wrote,
+    in a container, and never against a workspace you do not control. Routing this
+    through the `Executor` seam is the proper fix and is not done yet.
     """
 
     module: str
