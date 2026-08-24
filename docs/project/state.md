@@ -94,6 +94,16 @@ how a finished project stops looking finished.
   run works; only the cost accounting is wrong, so it would surface much later as a mystery.
 - **`@contextmanager` with `-> Iterator[T]` is deprecated on 3.14.** Use `Generator[T]`.
 
+## The eval suite changed — baselines are stale
+
+The suite grew from 19 to 30 deterministic tasks on 2026-08-25. **`evals/baseline-2026-08-24/`
+and `evals/m7-2026-08-24/` are no longer comparable to a new run**, for exactly the reason
+`docs/evals/m7-delta.md` documents: headline means across different task sets are not
+comparable. Comparing shared tasks only still works and is the right move for a regression
+check; a fresh baseline is needed before quoting a headline number again.
+
+Cost estimate: 33 tasks × 5 seeds, roughly 1.5× the last full run (~196k input tokens).
+
 ## Next action
 
 Nothing is blocked. The highest-value next thing is the **Anthropic adapter** — it is the only

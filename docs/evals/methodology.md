@@ -46,6 +46,41 @@ an agent that confidently does the wrong thing looks competent.
 - **Judged tasks depend on the judge's rubric**, which is a prompt in this repo and therefore
   another thing that can be wrong. `judge_agreement` is reported so a wobbly rubric is visible.
 
+## Two bounds, and what neither tells you
+
+A task must be **impossible to pass by doing nothing** and **possible to pass by doing it
+right**. Both are enforced:
+
+```bash
+uv run pytest -k passable_by_doing_nothing   # no grader is too weak
+uv run pytest tests/test_eval_oracles.py     # no grader is too strict
+```
+
+The second exists because a task nobody can pass looks like a *hard* task rather than a
+broken one, and would sit in the suite depressing every score for as long as nobody
+checked. It also verifies the arithmetic behind the expected answers.
+
+**Neither bound tells you whether a task discriminates.** That is a property of the task
+*and the model together*, and it only shows up in a real baseline. A task both bounds
+accept can still be trivial for a capable model — the first suite scored 13/13 with zero
+spread and passed every structural check.
+
+### Local models validate plumbing, not difficulty
+
+Running the suite against a small local model is free and worth doing, but read the
+result carefully. `llama3.2:3b` passed 1 of the 11 tasks added at 30 — and inspecting the
+tapes showed most failures were a single step with no tool call at all, because the model
+emitted its tool call as *message text*:
+
+```
+step 0: tool_calls=[]
+  text: '{"name":"run_command","parameters":{"command":"cut -f 1 -d ..."}}'
+```
+
+The runtime handled that correctly, treating text as text. But the run measured the
+model's tool-use ability, not the tasks' difficulty. It confirms the suite executes end
+to end; it says nothing about headroom.
+
 ## Guarding the graders
 
 The suite is run against a **do-nothing model** in CI. Any task that passes is a task whose grader
