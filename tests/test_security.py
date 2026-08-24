@@ -246,6 +246,9 @@ def test_docker_command_is_locked_down(tmp_path: Path) -> None:
         "--read-only",
         "--rm",
         "noexec",
+        # Not root. cap-drop removes CAP_DAC_OVERRIDE, so root in the container cannot
+        # write a bind mount it does not own -- perfectly isolated and useless.
+        "--user",
     ):
         assert required in joined, f"missing {required}"
     assert f"--volume={tmp_path.resolve()}:/work" in argv, "workspace is the only writable mount"
@@ -253,8 +256,9 @@ def test_docker_command_is_locked_down(tmp_path: Path) -> None:
 
 def test_docker_executor_names_its_isolation_honestly() -> None:
     """A recorded run must never claim protection it did not have."""
-    assert DockerExecutor().isolation == "docker (python:3.12-slim, no network)"
+    assert DockerExecutor().isolation == "docker (python:3.12-slim, no network, unprivileged)"
     assert "network=bridge" in DockerExecutor(network="bridge").isolation
+    assert "root in container" in DockerExecutor(run_as_host_user=False).isolation
 
 
 def test_missing_docker_says_so_rather_than_degrading_silently(tmp_path: Path) -> None:

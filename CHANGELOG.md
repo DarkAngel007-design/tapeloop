@@ -18,6 +18,16 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
   will start failing the day it works, which is the signal to tick the charter criterion.
 
 ### Fixed
+- **`DockerExecutor` could not write to the workspace on Linux.** `--cap-drop=ALL` removes
+  `CAP_DAC_OVERRIDE`, the capability that lets root ignore permission bits — so root in the
+  container was not the owner of a bind-mounted workspace and could not write to it. Perfectly
+  isolated and completely useless.
+
+  Invisible on macOS, where Docker Desktop's volume driver rewrites ownership so everything
+  appears owned by the container user. CI on Linux caught it on its first run, through the
+  positive-control test that exists because isolation which breaks the feature is a broken
+  feature rather than security. The container now runs as the host uid, which is also the better
+  posture — the fix and the hardening are the same change.
 - **The OpenAI renderer did not order tool results against their calls.** ADR-0014 makes that a
   canonical invariant, but the ordering lived only in the tape codec — so a `Message` built in
   memory and handed straight to the renderer reached the wire unordered. Found by conformance

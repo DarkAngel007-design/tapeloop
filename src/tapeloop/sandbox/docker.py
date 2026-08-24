@@ -15,6 +15,7 @@ run must never be able to claim protection it did not have.
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from collections.abc import Sequence
@@ -40,14 +41,37 @@ class DockerExecutor:
     cpus: str = "1"
     extra_args: Sequence[str] = field(default_factory=tuple[str, ...])
     binary: str = "docker"
+    run_as_host_user: bool = True
+    """Run as the uid that owns the workspace, rather than as root in the container.
+
+    Not cosmetic. `--cap-drop=ALL` removes CAP_DAC_OVERRIDE, which is the capability
+    that lets root ignore permission bits -- so on Linux, root in the container is not
+    the owner of a bind-mounted workspace and cannot write to it at all. The container
+    is perfectly isolated and completely useless.
+
+    This was invisible on macOS for exactly one reason: Docker Desktop's volume driver
+    rewrites ownership so everything appears owned by the container user. CI on Linux
+    caught it through the positive-control test, which exists because isolation that
+    breaks the feature is a broken feature rather than security.
+
+    Running unprivileged is also the better posture, so the fix and the hardening are
+    the same change.
+    """
 
     @property
     def isolation(self) -> str:
         net = "no network" if self.network == "none" else f"network={self.network}"
-        return f"docker ({self.image}, {net})"
+        who = "unprivileged" if self.run_as_host_user else "root in container"
+        return f"docker ({self.image}, {net}, {who})"
 
     def available(self) -> bool:
         return shutil.which(self.binary) is not None
+
+    def _user_args(self) -> list[str]:
+        """The host uid/gid, where the platform has them. Windows has neither."""
+        if not self.run_as_host_user or not hasattr(os, "getuid"):
+            return []
+        return ["--user", f"{os.getuid()}:{os.getgid()}"]
 
     def command_for(self, command: str, *, cwd: Path) -> list[str]:
         """Build the docker invocation. Separated so it can be asserted without Docker."""
@@ -69,6 +93,10 @@ class DockerExecutor:
             "--read-only",
             # /tmp still has to work, but not as a place to stash an executable.
             "--tmpfs=/tmp:rw,noexec,nosuid,size=64m",
+            # An arbitrary uid has no passwd entry and therefore no home. Tools that
+            # write dotfiles fail confusingly without this.
+            "--env=HOME=/tmp",
+            *self._user_args(),
             *self.extra_args,
             self.image,
             "sh",
