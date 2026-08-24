@@ -50,7 +50,7 @@ jobs:
           uv venv --python 3.11 /tmp/clean
           uv pip install --python /tmp/clean/bin/python dist/*.whl pytest
           PYTHONPATH=tests /tmp/clean/bin/python -m pytest tests -q
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
