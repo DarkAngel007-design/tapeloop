@@ -68,8 +68,12 @@ registry.register(
     ToolSpec(
         name="remote_thing",
         description="Described by a server, not by a signature.",
-        parameters={"type": "object", "properties": {}, "required": [],
-                    "additionalProperties": False},
+        parameters={
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": False,
+        },
         effect=Effect.WRITE,
         fn=lambda: "ok",
     )

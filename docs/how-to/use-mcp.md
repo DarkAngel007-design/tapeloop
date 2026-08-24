@@ -15,7 +15,7 @@ from tapeloop.tools import builtin
 registry = builtin.build(Path("workspace"))
 with StdioClient(command=["python", "-m", "some_mcp_server"]) as client:
     added = import_tools(client, registry, prefix="mcp_")
-    print(added)   # ['mcp_search', 'mcp_fetch', ...]
+    print(added)  # ['mcp_search', 'mcp_fetch', ...]
 ```
 
 !!! warning "Effect classes do not cross the wire"

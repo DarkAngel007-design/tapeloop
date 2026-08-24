@@ -18,10 +18,12 @@ allowed to run anything.
 from tapeloop.sandbox.permissions import PermissionPolicy, Rule, Verdict
 from tapeloop.tools.effects import Effect
 
-policy = PermissionPolicy(rules=[
-    Rule("run_command", "git status*", Verdict.ALLOW),
-    Rule("run_command", "*", Verdict.DENY),
-])
+policy = PermissionPolicy(
+    rules=[
+        Rule("run_command", "git status*", Verdict.ALLOW),
+        Rule("run_command", "*", Verdict.DENY),
+    ]
+)
 
 assert policy.decide("run_command", {"command": "git status"}, Effect.WRITE).allowed
 assert not policy.decide("run_command", {"command": "rm -rf /"}, Effect.WRITE).allowed
@@ -65,8 +67,8 @@ from tapeloop.core.loop import Agent
 from tapeloop.sandbox.docker import DockerExecutor
 from tapeloop.tools import builtin
 
-executor = DockerExecutor()          # no network, all capabilities dropped,
-workspace = Path("workspace")        # read-only root, unprivileged
+executor = DockerExecutor()  # no network, all capabilities dropped,
+workspace = Path("workspace")  # read-only root, unprivileged
 agent = Agent(
     client=...,
     registry=builtin.build(workspace, executor=executor),
@@ -82,8 +84,8 @@ what you actually got:
 from tapeloop.sandbox.docker import DockerExecutor
 from tapeloop.sandbox.subprocess import SubprocessExecutor
 
-print(SubprocessExecutor().isolation)   # subprocess (no isolation)
-print(DockerExecutor().isolation)       # docker (python:3.12-slim, no network, unprivileged)
+print(SubprocessExecutor().isolation)  # subprocess (no isolation)
+print(DockerExecutor().isolation)  # docker (python:3.12-slim, no network, unprivileged)
 assert "no isolation" in SubprocessExecutor().isolation
 ```
 

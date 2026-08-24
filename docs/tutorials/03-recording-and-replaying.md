@@ -79,7 +79,7 @@ replayed = Agent(
     cache=cache,
 ).run("count the lines")
 
-print(f"{cache.stats.hits}/{cache.stats.total} hits")   # 2/2 hits
+print(f"{cache.stats.hits}/{cache.stats.total} hits")  # 2/2 hits
 assert cache.stats.hit_rate == 1.0
 assert replayed.text == "Two lines."
 

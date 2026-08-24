@@ -26,16 +26,18 @@ workspace = Path("workspace")
 workspace.mkdir(exist_ok=True)
 (workspace / "notes.md").write_text("alpha\nbeta\ngamma\n", encoding="utf-8")
 
-client = ScriptedClient([
-    calls("read_file", path="notes.md"),
-    says("notes.md has three lines."),
-])
+client = ScriptedClient(
+    [
+        calls("read_file", path="notes.md"),
+        says("notes.md has three lines."),
+    ]
+)
 
 agent = Agent(client=client, registry=builtin.build(workspace), model="scripted-1")
 result = agent.run("how many lines are in notes.md?")
 
-print(result.text)      # notes.md has three lines.
-print(result.steps)     # 2
+print(result.text)  # notes.md has three lines.
+print(result.steps)  # 2
 assert result.text == "notes.md has three lines."
 assert result.steps == 2
 ```
@@ -56,7 +58,10 @@ from tapeloop.tools import builtin
 registry = builtin.build(Path("."))
 print(sorted(t.name for t in registry.specs()))
 assert sorted(t.name for t in registry.specs()) == [
-    "list_files", "read_file", "run_command", "write_file",
+    "list_files",
+    "read_file",
+    "run_command",
+    "write_file",
 ]
 
 # Confinement is enforced, not documented.
@@ -74,7 +79,7 @@ from tapeloop.providers.openai import OpenAIClient
 agent = Agent(
     client=OpenAIClient(),
     registry=builtin.build(workspace),
-    model="gpt-4o-mini",     # or any OpenAI-compatible endpoint
+    model="gpt-4o-mini",  # or any OpenAI-compatible endpoint
 )
 ```
 

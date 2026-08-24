@@ -78,7 +78,7 @@ Agent(
 
 plan = plan_fork(tapes / "wrote.jsonl", at=1)
 assert plan.soundness is Soundness.SIMULATED
-assert "write_file" in plan.report()   # it names the tool, not just a warning
+assert "write_file" in plan.report()  # it names the tool, not just a warning
 print(plan.report())
 ```
 

@@ -24,8 +24,8 @@ def celsius_to_fahrenheit(celsius: float) -> str:
 
 spec = registry.get("celsius_to_fahrenheit")
 assert spec is not None
-print(spec.description)              # Convert a temperature from Celsius to Fahrenheit.
-print(spec.parameters["properties"]) # {'celsius': {'type': 'number', 'description': ...}}
+print(spec.description)  # Convert a temperature from Celsius to Fahrenheit.
+print(spec.parameters["properties"])  # {'celsius': {'type': 'number', 'description': ...}}
 assert spec.parameters["properties"]["celsius"]["description"] == "The temperature to convert."
 assert registry.dispatch("celsius_to_fahrenheit", {"celsius": 100.0}) == "212.0F"
 ```

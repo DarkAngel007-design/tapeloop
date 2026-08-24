@@ -38,9 +38,9 @@ Agent(
 
 plan = plan_resume(tapes / "run.jsonl", workspace=workspace)
 print(plan.report())
-assert plan.restored_from is None          # nothing was rewound
-assert (workspace / "a.txt").exists()      # the earlier work survives
-assert plan.workspace_is_assumed           # and resume says it is trusting it
+assert plan.restored_from is None  # nothing was rewound
+assert (workspace / "a.txt").exists()  # the earlier work survives
+assert plan.workspace_is_assumed  # and resume says it is trusting it
 ```
 
 The report tells you where it stopped — cancelled, step ceiling, finished, or
