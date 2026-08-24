@@ -228,6 +228,28 @@ def cmd_view(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_conformance(args: argparse.Namespace) -> int:
+    from tapeloop.providers.conformance import run_conformance
+    from tapeloop.providers.targets import BUILTIN_TARGETS
+
+    names = [args.target] if args.target else sorted(BUILTIN_TARGETS)
+    worst = 0
+    for name in names:
+        factory = BUILTIN_TARGETS.get(name)
+        if factory is None:
+            print(
+                f"unknown target {name!r}; known: {', '.join(sorted(BUILTIN_TARGETS))}",
+                file=sys.stderr,
+            )
+            return 2
+        report = run_conformance(factory())
+        print(report.render())
+        print()
+        if not report.passed:
+            worst = 1
+    return worst
+
+
 def cmd_diff(args: argparse.Namespace) -> int:
     report = diff_tapes(Path(args.a), Path(args.b))
     print(report.render())
@@ -303,6 +325,12 @@ def build_parser() -> argparse.ArgumentParser:
     view.add_argument("--prices", help="price table (default: ./prices.toml)")
     view.add_argument("--otel", action="store_true", help="also export OpenTelemetry spans")
     view.set_defaults(func=cmd_view)
+
+    conf = sub.add_parser(
+        "conformance", help="check a ModelClient adapter against the contract (ADR-0002)"
+    )
+    conf.add_argument("--target", help="one builtin target; omit to run all")
+    conf.set_defaults(func=cmd_conformance)
 
     diff = sub.add_parser("diff", help="compare two tapes step by step")
     diff.add_argument("a")

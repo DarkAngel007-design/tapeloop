@@ -4,6 +4,15 @@ This table is the specification for the `ModelClient` conformance suite
 ([ADR-0002](../adr/0002-modelclient-conformance-suite.md)). **If a divergence is not written here,
 the seam does not handle it.** Add the row before you add the adapter.
 
+Every numbered row has a check behind it, enforced by
+`test_every_documented_divergence_has_a_check` — a row with no check is a claim nobody verifies,
+which is how #5 sat unverified until that test was written. Run them with:
+
+```bash
+tapeloop conformance                 # all builtin targets
+tapeloop conformance --target openai
+```
+
 Status legend: ✅ handled · 🚧 planned · ❔ unverified
 
 | # | Divergence | OpenAI (Chat Completions) | Anthropic (Messages) | Status |

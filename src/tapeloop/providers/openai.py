@@ -45,6 +45,7 @@ from tapeloop.providers.stream import (
     ToolCallAccumulator,
     ToolCallDelta,
 )
+from tapeloop.record.codec import order_results
 from tapeloop.tools.registry import ToolSpec
 
 PROVIDER_ID = "openai"
@@ -103,15 +104,16 @@ def render_messages(messages: Sequence[Message]) -> list[dict[str, Any]]:
     Neither layout exists on the tape.
     """
     out: list[dict[str, Any]] = []
+    pending_calls: tuple[ToolCall, ...] = ()
     for msg in messages:
         if msg.role is Role.TOOL_RESULTS:
+            # Ordered against the preceding assistant's calls (ADR-0014), defensively.
+            # The codec already does this when writing the tape, but a Message built in
+            # memory never passes through the codec -- and the conformance suite is
+            # right that an adapter must not depend on someone else having tidied up.
+            ordered = order_results(msg.tool_results, pending_calls)
             out.extend(
-                {
-                    "role": "tool",
-                    "tool_call_id": r.call_id,
-                    "content": r.content,
-                }
-                for r in msg.tool_results
+                {"role": "tool", "tool_call_id": r.call_id, "content": r.content} for r in ordered
             )
             continue
 
@@ -128,6 +130,7 @@ def render_messages(messages: Sequence[Message]) -> list[dict[str, Any]]:
                 for c in msg.tool_calls
             ]
         out.append(wire)
+        pending_calls = msg.tool_calls or ()
     return out
 
 

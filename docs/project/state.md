@@ -37,9 +37,11 @@ fail on a fresh clone, that is a real regression — fix it before starting anyt
 All ten milestones shipped, all carried debt cleared. What remains is not a milestone list, it is
 the ordinary work of a pre-1.0 project:
 
-1. **The Anthropic adapter.** Deliberately never a milestone. The day it passes the conformance
-   suite *unmodified* is the day the provider abstraction is proven rather than asserted. It needs
-   credits, and it is the single highest-value thing left.
+1. **The Anthropic adapter.** Deliberately never a milestone. **The conformance suite now exists**
+   (`tapeloop conformance`), so this is a pass/fail check rather than a hopeful integration: the
+   Anthropic target is already registered and fails 15 of 18 by name, which is the implementation
+   checklist. When `test_the_anthropic_adapter_is_registered_and_currently_fails` starts failing,
+   invert it and tick the charter criterion. Needs credits; nothing else blocks it.
 2. **Publish `0.1.0` to PyPI.** The name is unclaimed. The API is not stable and should not pretend
    to be, but a claimed name and an installable package cost nothing.
 3. **Grow the eval suite.** 19 deterministic tasks is enough to catch a regression and not enough

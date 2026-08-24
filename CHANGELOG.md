@@ -3,6 +3,28 @@
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 
+## [Unreleased]
+
+### Added
+- **The `ModelClient` conformance suite** (`providers/conformance.py`) — 18 checks defining what a
+  ModelClient *is*, one per row of the divergence table plus general invariants. Shipped in the
+  package rather than in `tests/`, so a third-party adapter author can import and run it. No
+  network: every check runs against synthetic wire payloads the adapter builds itself, so a new
+  provider can be conformance-tested before anyone has a key for it.
+- **`tapeloop conformance`** — runs it, non-zero exit on failure.
+- The **Anthropic target is registered while still unimplemented** and fails 15 of 18 by name.
+  That is deliberate: the contract is written before the implementation, so nobody can shape it
+  around whatever they happened to build. `test_the_anthropic_adapter_is_registered_and_currently_fails`
+  will start failing the day it works, which is the signal to tick the charter criterion.
+
+### Fixed
+- **The OpenAI renderer did not order tool results against their calls.** ADR-0014 makes that a
+  canonical invariant, but the ordering lived only in the tape codec — so a `Message` built in
+  memory and handed straight to the renderer reached the wire unordered. Found by conformance
+  check C05, on an adapter that had been in production since M1.
+- No check existed for divergence #5, prompt-cache reporting. Found by a test asserting every
+  documented divergence has a check behind it. A row in the table verified by nothing.
+
 ## [0.1.1] — 2026-08-24
 
 ### Fixed
