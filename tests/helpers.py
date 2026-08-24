@@ -23,6 +23,7 @@ class ScriptedClient:
     def __init__(self, script: list[ModelResponse]) -> None:
         self._script = list(script)
         self.calls = 0
+        self.seen_history: list[Message] = []
 
     @property
     def provider_id(self) -> str:
@@ -37,6 +38,7 @@ class ScriptedClient:
         max_tokens: int = 4096,
     ) -> ModelResponse:
         self.calls += 1
+        self.seen_history = list(messages)
         if not self._script:
             raise AssertionError("the script ran out; the run took more steps than expected")
         return self._script.pop(0)

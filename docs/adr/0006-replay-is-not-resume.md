@@ -23,6 +23,22 @@ every eval, every fork.
 **`resume`** is *real*. It restores a workspace snapshot taken at step *n* and re-executes forward
 for genuine effects. Slower, requires the sandbox (M5), and is what you use after a crash.
 
+## Status of the implementation
+
+`replay` and `fork` landed at M4. **`resume` landed 2026-08-24**, and for four milestones this ADR
+described a feature that did not exist — worth recording, because a decision document describing
+unbuilt behaviour is indistinguishable from one describing built behaviour.
+
+One thing the implementation settled that this ADR did not anticipate: **resume does not restore a
+snapshot by default.** The wording above ("restores a workspace snapshot taken at step *n*")
+assumed rewinding was the normal case. It is not. When a four-hour run dies at minute 200, the
+workspace already holds everything those 200 minutes produced — that state *is* what you are
+resuming, and rewinding would delete the work being continued.
+
+Restoring is therefore an explicit, separate request (`--restore-from N`), for the different
+question "it went wrong around step 12, put it back and try again". The report says which one you
+got, and warns that restoring destroys work done after that step.
+
 ## Consequences
 
 - One command with a `--real` flag was rejected: the failure mode is a replay that appears to

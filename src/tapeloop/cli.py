@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from tapeloop.core.loop import Agent
+from tapeloop.record.base import Event
 from tapeloop.record.jsonl import JsonlStore
 from tapeloop.replay.diff import diff_tapes
 from tapeloop.replay.fork import UnsoundFork, plan_fork
@@ -228,6 +229,56 @@ def cmd_view(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_resume(args: argparse.Namespace) -> int:
+    from tapeloop.replay.resume import NothingToResume, plan_resume
+    from tapeloop.sandbox.snapshot import SnapshotStore
+
+    tape = Path(args.tape)
+    workspace = Path(args.workspace)
+    snapshots = SnapshotStore(Path(args.snapshots)) if args.snapshots else None
+    try:
+        plan = plan_resume(
+            tape,
+            workspace=workspace,
+            snapshots=snapshots,
+            restore_from=args.restore_from,
+        )
+    except (NothingToResume, FileNotFoundError, ValueError) as e:
+        print(f"cannot resume: {e}", file=sys.stderr)
+        return 2
+
+    print(plan.report(), file=sys.stderr)
+    if args.dry_run:
+        return 0
+
+    # A resumed run gets its own tape. The original is a record of what happened and
+    # must not be appended to -- a tape with two run_starts is not one run.
+    out = tape.with_name(f"{tape.stem}-resumed.jsonl")
+    store = JsonlStore(out)
+    store.append(
+        Event(
+            kind="resumed_from",
+            step=0,
+            payload={
+                "tape": tape.name,
+                "after_steps": plan.completed_steps,
+                "stopped_because": plan.stopped_because.value,
+                "restored_from": plan.restored_from,
+            },
+        )
+    )
+    agent = _build_agent(model=args.model, workspace=workspace, tape=out, system=None)
+    agent.store = store
+    if snapshots is not None:
+        agent.snapshots = snapshots
+        agent.workspace = workspace
+
+    result = agent.resume(plan.history, nudge=args.nudge, on_delta=None if args.quiet else _echo)
+    print(f"\n{result.text or ''}")
+    print(f"\nsteps={result.steps}  tape={out}", file=sys.stderr)
+    return 0
+
+
 def cmd_conformance(args: argparse.Namespace) -> int:
     from tapeloop.providers.conformance import run_conformance
     from tapeloop.providers.targets import BUILTIN_TARGETS
@@ -325,6 +376,25 @@ def build_parser() -> argparse.ArgumentParser:
     view.add_argument("--prices", help="price table (default: ./prices.toml)")
     view.add_argument("--otel", action="store_true", help="also export OpenTelemetry spans")
     view.set_defaults(func=cmd_view)
+
+    res = sub.add_parser(
+        "resume",
+        help="continue a stopped run for real — nothing is served from cache (ADR-0006)",
+    )
+    res.add_argument("tape")
+    res.add_argument("--workspace", default=".")
+    res.add_argument("--model", default=_default_model())
+    res.add_argument("--nudge", help="one message to add before continuing")
+    res.add_argument("--snapshots", help="snapshot directory, needed by --restore-from")
+    res.add_argument(
+        "--restore-from",
+        type=int,
+        metavar="STEP",
+        help="rewind the workspace to this step first — DESTROYS work done after it",
+    )
+    res.add_argument("--dry-run", action="store_true", help="report and run nothing")
+    res.add_argument("--quiet", action="store_true")
+    res.set_defaults(func=cmd_resume)
 
     conf = sub.add_parser(
         "conformance", help="check a ModelClient adapter against the contract (ADR-0002)"

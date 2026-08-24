@@ -6,6 +6,17 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 ## [Unreleased]
 
 ### Added
+- **`tapeloop resume`** — continue a stopped run, for real. ADR-0006 has described this since M4
+  and nothing implemented it. Unlike `replay` and `fork`, resume serves **nothing** from cache:
+  every step it takes is a real call with real effects.
+
+  It deliberately does **not** rewind the workspace. When a long run dies, the workspace already
+  holds what that run produced, and that state is what you are resuming — rewinding would delete
+  the work being continued. `--restore-from N` is the explicit, separate request, and the report
+  says plainly that it destroys anything done after that step.
+
+  Resumed runs get their own tape marked `resumed: true`, with a `resumed_from` record naming the
+  parent. A tape with two `run_start` records is not one run.
 - **The `ModelClient` conformance suite** (`providers/conformance.py`) — 18 checks defining what a
   ModelClient *is*, one per row of the divergence table plus general invariants. Shipped in the
   package rather than in `tests/`, so a third-party adapter author can import and run it. No

@@ -110,7 +110,44 @@ class Agent:
         """
         messages: list[Message] = list(history) if history else [system(self.system_prompt)]
         messages.append(user(task))
+        return self._loop(messages, on_delta=on_delta, token=token)
 
+    def resume(
+        self,
+        history: Sequence[Message],
+        *,
+        nudge: str | None = None,
+        on_delta: OnDelta | None = None,
+        token: CancellationToken | None = None,
+    ) -> RunResult:
+        """Continue a run that stopped, from history, **without replaying anything**.
+
+        This is the other half of ADR-0006. `replay` and `fork` serve cached results
+        for `write` tools, which makes them simulations: fast, and disconnected from
+        the world. `resume` replays nothing. Every step it takes is real, against the
+        workspace as it actually is.
+
+        Which is why it does not restore a snapshot by default. When a long run dies,
+        the workspace is already in the state that run left it in — that state *is* the
+        thing you are resuming. Rewinding it would destroy the work being continued.
+        Restoring is an explicit choice, made by the caller before calling this.
+
+        ``nudge`` appends one user message before continuing, for the common case of
+        "carry on, but this time avoid X". Omit it to continue untouched.
+        """
+        messages = list(history)
+        if nudge:
+            messages.append(user(nudge))
+        return self._loop(messages, on_delta=on_delta, token=token, resumed=True)
+
+    def _loop(
+        self,
+        messages: list[Message],
+        *,
+        on_delta: OnDelta | None = None,
+        token: CancellationToken | None = None,
+        resumed: bool = False,
+    ) -> RunResult:
         totals = Usage()
         stop = StopReason.OTHER
         step = 0
@@ -125,6 +162,10 @@ class Agent:
                     "provider": self.client.provider_id,
                     "tools": [t.name for t in self.registry.specs()],
                     "streaming": on_delta is not None,
+                    # A resumed tape is not a whole run. Anything reading it later --
+                    # the viewer, an eval, a person -- needs to know the history did
+                    # not start here.
+                    "resumed": resumed,
                 },
             )
         )

@@ -35,6 +35,7 @@ tapeloop run  "refactor the auth module"     # records a tape
 tapeloop show .tapeloop/run-001.jsonl        # what happened, step by step
 tapeloop fork .tapeloop/run-001.jsonl "refactor the auth module"          --at 12 --system "Be terse."        # branch at step 12, new prompt
 tapeloop diff run-001.jsonl fork-run-001-at12.jsonl
+tapeloop resume .tapeloop/run-001.jsonl        # a run died? carry on, for real
 ```
 
 `fork` replays steps 0–11 from the tape in milliseconds. Only step 12 onward costs anything.
