@@ -29,7 +29,7 @@ git config core.hooksPath .githooks   # required after a fresh clone
 **After cloning, set `core.hooksPath`.** Git does not install hooks automatically, and the
 pre-commit secret guard in `.githooks/` is inert until you do.
 
-Expected as of this writing: ****, ruff clean, pyright **0 errors**. If any of these
+Expected as of this writing: **208 passed, 14 deselected (live)**, ruff clean, pyright **0 errors**. If any of these
 fail on a fresh clone, that is a real regression — fix it before starting anything new.
 
 ## The roadmap is finished. What is actually left
