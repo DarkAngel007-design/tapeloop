@@ -224,8 +224,12 @@ def test_sdk_exceptions_reach_the_retry_policy(monkeypatch: pytest.MonkeyPatch) 
     Found by pointing the runtime at a local Ollama and watching a raw
     `openai.InternalServerError` come out the top of the stack.
     """
-    import httpx2
     import openai
+
+    # openai>=3 vendors its HTTP layer as httpx2; the declared floor is 2.0, and the
+    # dependency-floor CI job runs the suite pinned there. This exact import was
+    # caught once already in another test.
+    httpx2 = pytest.importorskip("httpx2", reason="needs openai>=3")
 
     from tapeloop.core.errors import ProviderUnavailable, RateLimited
     from tapeloop.providers.openai import OpenAIClient
