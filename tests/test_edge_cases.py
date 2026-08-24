@@ -143,7 +143,9 @@ def test_fork_at_zero_and_at_the_last_step(tmp_path: Path) -> None:
     _agent(tmp_path, tape, _done()).run("go")
 
     at_zero = plan_fork(tape, at=0)
-    assert at_zero.history == [], "forking at 0 means starting over with no history"
+    # Entering step 0, the conversation is the system prompt and the task. This once
+    # asserted [], which silently discarded the task.
+    assert [m.role.value for m in at_zero.history] == ["system", "user"]
 
     last = len(Recording.load(tape).steps)
     assert plan_fork(tape, at=last).at == last, "forking at the end is a re-run, not an error"

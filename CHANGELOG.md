@@ -5,6 +5,20 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 
 ## [Unreleased]
 
+### Fixed
+- **`Recording.history_before(n)` was one message short**, stopping *at* step *n*'s assistant
+  response rather than before it. The slice never matched what the tape had keyed, so **a fork's
+  step cache could never hit** — including a fork with nothing changed. Also made `history_before(0)`
+  return the system prompt and the task rather than nothing, since discarding the task is the one
+  thing a fork must not do.
+- **`tapeloop fork` sent the task twice.** The forked history already contains it, and `run()`
+  appends its argument — which changed the history again and compounded the miss above. Fork now
+  continues from history rather than restarting, and its positional argument is an optional
+  *nudge*, since the task comes from the tape.
+- Documentation described forking as "replaying steps 0–11 from the tape". It does not: those
+  steps are **not re-run at all**, their results arriving as history. Same bill, different
+  mechanism, and the difference is visible the moment you read `cache.stats`.
+
 ### Added
 - **`OllamaClient`** — a local, free provider. It is thin by nature, and was built as a
   stress test of the provider seam rather than because anyone needed it.

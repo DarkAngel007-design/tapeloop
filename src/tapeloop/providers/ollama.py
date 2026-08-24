@@ -17,8 +17,13 @@ rather than by special cases here:
   as zero. That is honest rather than missing: there is nothing being cached.
 - **Parallel tool calls are model-dependent** and many local models never emit them.
   Nothing breaks; the loop simply sees one call per step.
-- **Tool support is model-dependent** entirely. A model without it ignores the `tools`
-  parameter and answers in prose, which surfaces as a run that never calls anything.
+- **Tool support is model-dependent** entirely, and small models fail at it in a
+  specific way: rather than ignoring `tools`, they sometimes emit a *tool call as
+  text* — `llama3.2:3b` produced the literal string `{"name":"read_file","parameters{"}}`
+  in the content field, malformed JSON and all. The runtime handles this correctly, in
+  that it treats text as text and ends the turn; but the agent has not done the job and
+  nothing errors. Expect it, and prefer a model with real tool support for anything
+  beyond exercising the plumbing.
 - **A 500 can mean something permanent.** Ollama returns HTTP 500 for "model requires
   19.7 GiB but only 17.3 GiB are available", which will never succeed however long you
   wait. `translate` maps 5xx to `ProviderUnavailable`, which is retryable — so the

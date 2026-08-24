@@ -130,7 +130,11 @@ def cmd_fork(args: argparse.Namespace) -> int:
     )
     agent.store = store
     agent.cache = plan.cache
-    result = agent.run(args.task, history=plan.history, on_delta=None if args.quiet else _echo)
+    # resume(), not run(): the forked history already contains the original task, and
+    # run() appends its argument. Appending it again sent the task twice and changed
+    # the history enough that the step key never matched the tape -- so a fork with
+    # nothing changed still missed the cache entirely.
+    result = agent.resume(plan.history, nudge=args.nudge, on_delta=None if args.quiet else _echo)
     print(f"\n{result.text or ''}")
     print(
         f"\ncache: {plan.cache.stats.hits}/{plan.cache.stats.total} hit  tape={tape}",
@@ -335,7 +339,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     fork = sub.add_parser("fork", help="branch a tape at a step and continue live")
     fork.add_argument("tape")
-    fork.add_argument("task")
+    fork.add_argument(
+        "nudge",
+        nargs="?",
+        help="optional extra instruction; the original task comes from the tape",
+    )
     fork.add_argument("--at", type=int, required=True, help="step to branch at")
     fork.add_argument("--model")
     fork.add_argument("--system", help="the thing you are usually changing")

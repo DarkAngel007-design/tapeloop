@@ -84,19 +84,22 @@ class Recording:
         return rec
 
     def history_before(self, step: int) -> list[Message]:
-        """The conversation as it stood entering ``step``.
+        """The conversation as it stood **entering** ``step``.
 
-        Walks forward counting assistant turns, so the slice lands on a step
-        boundary rather than an arbitrary message index.
+        Anchored on the position of that step's own assistant response, and stopping
+        just before it. The earlier version stopped *at* the response instead, leaving
+        the slice one message short of what the tape had keyed — so a fork's step key
+        never matched anything and the cache silently never hit. Found by forking a
+        real recorded run and watching a supposedly unchanged fork miss 0/1.
         """
-        if step <= 0:
+        if step < 0:
             return []
-        seen = 0
+        if step >= len(self.steps):
+            return list(self.history)
+        anchor = self.steps[step].response.message
         for i, message in enumerate(self.history):
-            if message in (s.response.message for s in self.steps):
-                seen += 1
-                if seen == step:
-                    return self.history[: i + 1]
+            if message is anchor:
+                return self.history[:i]
         return list(self.history)
 
     def writes_before(self, step: int) -> list[RecordedTool]:

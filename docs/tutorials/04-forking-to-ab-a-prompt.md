@@ -46,6 +46,16 @@ assert len(plan.history) > 0
 `plan_fork` runs nothing. It builds the history, works out whether the fork is sound,
 and hands you a report — so you can decide before spending anything.
 
+!!! note "What actually makes this cheap"
+    Steps 0–2 are not replayed. They are **not re-run at all**: their results come off
+    the tape as history, and the agent's first live call is step 3. The step cache is a
+    separate thing, and it only helps when the forked run reproduces keys the tape
+    already holds — which is exactly what changing a system prompt prevents, since the
+    prompt is the first message and every key downstream of it changes.
+
+    Both give you the same bill. Only the second is what people usually mean by
+    "replay", and the difference matters once you are reading `cache.stats`.
+
 ## Faithful or simulated
 
 A fork tells you whether it can be trusted, and it works this out from the effect

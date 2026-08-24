@@ -264,3 +264,54 @@ def test_a_snapshot_upgrades_a_simulated_fork_to_faithful(tmp_path: Path) -> Non
     assert "restored from snapshot" in plan.report()
     assert (ws / "made.txt").read_text(encoding="utf-8") == "v1", "the replayed write is real"
     assert not (ws / "stray.txt").exists(), "and later changes are gone"
+
+
+def test_forking_an_unchanged_run_actually_hits_the_cache(tmp_path: Path) -> None:
+    """Two bugs made this impossible, and neither failed loudly.
+
+    `history_before(n)` stopped *at* step n's assistant response rather than before it,
+    so the slice was one message short of what the tape had keyed and no fork key ever
+    matched. And the fork command called `run(task, history=...)`, which appends its
+    task argument — but the forked history already contains the task, so it was sent
+    twice, changing the history again.
+
+    Found by forking a real recorded run and noticing a fork with nothing changed
+    reported 0 hits.
+    """
+    from tapeloop.record.cache import StepCache
+    from tapeloop.replay.recording import Recording
+
+    tapes = tmp_path / "tapes"
+    tapes.mkdir(parents=True)
+    tape = tapes / "run.jsonl"
+    script = [
+        ModelResponse(
+            message=Message(
+                role=Role.ASSISTANT,
+                tool_calls=(ToolCall(id=f"c{i}", name="list_files", arguments={}),),
+            ),
+            stop_reason=StopReason.TOOL_USE,
+        )
+        for i in range(3)
+    ] + [
+        ModelResponse(
+            message=Message(role=Role.ASSISTANT, text="done"), stop_reason=StopReason.END_TURN
+        )
+    ]
+    _agent(tmp_path, tape, ScriptedClient(script)).run("THE TASK")
+
+    recording = Recording.load(tape)
+    # Entering step n, the history is the system prompt, the task, and n completed
+    # turns of two messages each.
+    for n in range(len(recording.steps)):
+        assert len(recording.history_before(n)) == 2 + 2 * n, f"slice wrong at step {n}"
+
+    plan = plan_fork(tape, at=2)
+    # An empty script: any live call raises.
+    forked = _agent(tmp_path, tapes / "forked.jsonl", ScriptedClient([]), cache=plan.cache)
+    forked.resume(plan.history)
+    assert plan.cache.stats.hits >= 1, "an unchanged fork must reuse the tape"
+    assert isinstance(plan.cache, StepCache)
+
+    # And the task appears exactly once, not twice.
+    assert sum(1 for m in plan.history if m.text == "THE TASK") == 1
