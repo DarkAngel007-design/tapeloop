@@ -3,6 +3,25 @@
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 
+## [0.1.1] — 2026-08-24
+
+### Fixed
+- **The MCP server told every host it was version `0.0.0`.** `SERVER_VERSION` and the client's
+  `clientInfo.version` were both hardcoded and stale — the same drift the 0.1.0 gate claimed to
+  have eliminated. Both now read `__version__`.
+
+  The gate had a version-consistency grep and it missed them: the pattern was case-sensitive and
+  only matched `version =`, so `SERVER_VERSION = "0.0.0"` and `"version": "0.0.0"` were both
+  invisible. Found by exercising the MCP handshake against the *published* package, which is the
+  only reason it surfaced at all.
+
+  Cosmetic in effect — nothing negotiates on it today — but a handshake reporting the wrong
+  version is a compatibility negotiation conducted on false information.
+
+### Added
+- `test_no_version_string_is_hardcoded_anywhere_in_src`, and an assertion on the MCP handshake's
+  reported version. Neither existed, which is why this shipped.
+
 ## [0.1.0] — 2026-08-24
 
 First release. All ten roadmap milestones shipped. **The API is not stable**; 0.x is

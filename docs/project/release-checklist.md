@@ -21,8 +21,12 @@ else may hold a copy — a tape's header records the writer version, and a drift
 makes a tape claim provenance it does not have.
 
 ```bash
-grep -rn '__version__\|version *=' pyproject.toml src/ | grep -v dynamic
+grep -rniE '\bversion\b.{0,4}[:=].{0,4}"[0-9]+\.[0-9]+\.[0-9]+"' src/
 ```
+
+Case-insensitive, and matching `:` as well as `=`. The narrower first version of this grep
+missed `SERVER_VERSION = "0.0.0"` and `"version": "0.0.0"` in the MCP layer, and 0.1.0 shipped
+telling every MCP host it was version 0.0.0.
 
 ## 3. The declared dependency floor actually works
 

@@ -8,7 +8,7 @@ from tapeloop.events import Message, ModelResponse, StopReason, ToolCall, ToolRe
 from tapeloop.tools.effects import Effect
 from tapeloop.tools.registry import Registry, ToolSpec
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 __all__ = [
     "Agent",

@@ -23,6 +23,13 @@ from tapeloop.tools.effects import Effect
 from tapeloop.tools.registry import Registry, ToolSpec
 
 
+def _client_version() -> str:
+    """Single-sourced, for the same reason the server's is."""
+    from tapeloop import __version__
+
+    return __version__
+
+
 @dataclass(frozen=True, slots=True)
 class RemoteTool:
     name: str
@@ -94,7 +101,7 @@ class StdioClient:
             {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {},
-                "clientInfo": {"name": "tapeloop", "version": "0.0.0"},
+                "clientInfo": {"name": "tapeloop", "version": _client_version()},
             },
         )
         self._notify("notifications/initialized")

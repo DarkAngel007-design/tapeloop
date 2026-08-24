@@ -21,6 +21,7 @@ from typing import Any
 import pytest
 from helpers import workspace_of
 
+import tapeloop
 from tapeloop.mcp.client import StdioClient, import_tools
 from tapeloop.mcp.protocol import PROTOCOL_VERSION, ProtocolError, parse_message
 from tapeloop.mcp.server import McpServer
@@ -91,6 +92,10 @@ def test_ship_criterion_the_server_speaks_mcp_to_a_foreign_peer(peer: tuple[RawP
     assert isinstance(result, dict)
     assert result["protocolVersion"] == PROTOCOL_VERSION
     assert result["serverInfo"]["name"] == "tapeloop"
+    assert result["serverInfo"]["version"] == tapeloop.__version__, (
+        "0.1.0 shipped telling every MCP host it was 0.0.0: the version was\n"
+        "hardcoded here and nothing asserted it"
+    )
     assert "tools" in result["capabilities"]
 
     raw.notify("notifications/initialized")

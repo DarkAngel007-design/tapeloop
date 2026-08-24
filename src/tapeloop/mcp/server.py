@@ -32,7 +32,14 @@ from tapeloop.mcp.protocol import (
 from tapeloop.tools.registry import Registry
 
 SERVER_NAME = "tapeloop"
-SERVER_VERSION = "0.0.0"
+
+
+def server_version() -> str:
+    """Single-sourced. A handshake that reports the wrong version is a compatibility
+    negotiation conducted on false information."""
+    from tapeloop import __version__
+
+    return __version__
 
 
 @dataclass(slots=True)
@@ -67,7 +74,7 @@ class McpServer:
                 {
                     "protocolVersion": PROTOCOL_VERSION,
                     "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+                    "serverInfo": {"name": SERVER_NAME, "version": server_version()},
                 },
             )
         if request.method in ("notifications/initialized", "initialized"):

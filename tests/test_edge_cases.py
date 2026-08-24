@@ -281,3 +281,23 @@ def test_path_confinement_covers_absolute_paths_and_symlink_escapes(tmp_path: Pa
     for path in ("/etc/passwd", str(outside), "../outside.txt", "link/outside.txt"):
         out = reg.dispatch("read_file", {"path": path})
         assert out.startswith("ERROR:"), f"{path!r} was not refused: {out[:60]}"
+
+
+def test_no_version_string_is_hardcoded_anywhere_in_src() -> None:
+    """One source of truth. 0.1.0 shipped with two stale copies in the MCP layer.
+
+    The release checklist had a version-consistency grep and it missed them: the
+    pattern was case-sensitive and only matched `version =`, not `SERVER_VERSION =`
+    or `"version": `.
+    """
+    import re
+
+    src = Path(__file__).resolve().parents[1] / "src"
+    pattern = re.compile(r'\bversion\b.{0,4}[:=].{0,4}"\d+\.\d+\.\d+"', re.IGNORECASE)
+    offenders = [
+        f"{path.relative_to(src)}:{i}"
+        for path in src.rglob("*.py")
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if pattern.search(line) and path.name != "__init__.py"
+    ]
+    assert not offenders, f"hardcoded version strings: {offenders}"
