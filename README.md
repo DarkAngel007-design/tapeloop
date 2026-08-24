@@ -1,5 +1,9 @@
 # tapeloop
 
+[![ci](https://github.com/DarkAngel007-design/tapeloop/actions/workflows/ci.yml/badge.svg)](https://github.com/DarkAngel007-design/tapeloop/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/tapeloop)](https://pypi.org/project/tapeloop/)
+[![Python](https://img.shields.io/pypi/pyversions/tapeloop)](https://pypi.org/project/tapeloop/)
+
 **An agent runtime that records every step, so any run can be replayed, forked, and diffed.**
 
 > **Status: pre-alpha, M9 of M9 — the roadmap is complete.** `run`, `show`, `fork`, `diff`,

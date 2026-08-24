@@ -1,6 +1,31 @@
 # Release checklist
 
-Run every one of these before publishing. They are ordered so the cheap ones fail first.
+**Most of this is now automated.** `.github/workflows/ci.yml` runs the checks on every push, and
+`release.yml` runs the whole gate on a `v*` tag and publishes if it passes. What follows is what
+those workflows do and why — read it when a job fails, or when adding a check.
+
+## Cutting a release
+
+```bash
+# bump __version__, update CHANGELOG, commit
+git tag -a v0.2.0 -m "tapeloop 0.2.0" && git push origin v0.2.0
+```
+
+The tag is the decision; everything after it is mechanical. `release.yml` refuses to proceed if
+the tag disagrees with `__version__`, or if that version already exists on PyPI — a version number
+can be yanked but never reused, so it is better to fail before building than to discover it in
+twine's output.
+
+**One-time PyPI setup, needed before the first tagged release:** on pypi.org → tapeloop → Manage →
+Publishing, add a GitHub publisher for `DarkAngel007-design/tapeloop`, workflow `release.yml`,
+environment `pypi`. That enables Trusted Publishing: PyPI verifies the workflow's OIDC identity
+directly, so **no API token is stored anywhere** and there is nothing to leak or rotate.
+
+---
+
+## What CI checks, and why each one exists
+
+They are ordered so the cheap ones fail first.
 
 Most of this is ordinary. Two steps are not, and both caught a real bug the first time
 they were run: **installing the built artifact in a clean environment**, and **testing

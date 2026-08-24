@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # The openai floor was wrong for six milestones because nothing watched it.
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

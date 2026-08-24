@@ -1,0 +1,99 @@
+name: release
+
+# Tag-triggered. The tag is the decision; everything after it is mechanical.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  gate:
+    name: full release gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+
+      - name: the tag must match the package version
+        # A tag that disagrees with __version__ produces a release nobody can trace
+        # back to a commit. Fail before anything is built.
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(uv run python -c "import tapeloop; print(tapeloop.__version__)")
+          echo "tag=$TAG package=$PKG"
+          [ "$TAG" = "$PKG" ] || { echo "::error::tag v$TAG != version $PKG"; exit 1; }
+
+      - name: this version must not already exist on PyPI
+        # A version number can be yanked but never reused. Better to fail here than
+        # to discover it in twine's error output.
+        run: |
+          PKG=$(uv run python -c "import tapeloop; print(tapeloop.__version__)")
+          if curl -sf "https://pypi.org/pypi/tapeloop/$PKG/json" > /dev/null; then
+            echo "::error::tapeloop $PKG is already on PyPI and cannot be replaced"; exit 1
+          fi
+          echo "$PKG is unclaimed"
+
+      - run: uv run ruff check . && uv run ruff format --check .
+      - run: uv run pyright
+      - run: uv run pytest
+      - run: uv run tapeloop conformance --target openai
+      - name: build and check
+        run: |
+          uv build
+          uv run --with twine twine check dist/*
+      - name: install the artifact and run the suite against it
+        run: |
+          uv venv --python 3.11 /tmp/clean
+          uv pip install --python /tmp/clean/bin/python dist/*.whl pytest
+          PYTHONPATH=tests /tmp/clean/bin/python -m pytest tests -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: publish to PyPI
+    needs: gate
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      # Trusted Publishing: PyPI verifies this workflow's OIDC identity directly.
+      # No API token is stored anywhere, so there is no token to leak or rotate.
+      # One-time setup on PyPI: Manage project -> Publishing -> add a GitHub publisher
+      # for DarkAngel007-design/tapeloop, workflow release.yml, environment pypi.
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: github release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: create the release with the changelog section for this version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" {found=1; next}
+            found && /^## \[/ {exit}
+            found {print}
+          ' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md." > notes.md
+          gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes-file notes.md

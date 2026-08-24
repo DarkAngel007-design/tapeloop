@@ -1,0 +1,143 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A superseded run tells you nothing. Cancel it and save the minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Live tests need a paid API or a Docker daemon and are deselected by default.
+  # Nothing here may spend money.
+  UV_FROZEN: "1"
+
+jobs:
+  # Ordered cheapest-first: a formatting error should not wait on a test matrix.
+  check:
+    name: lint · types · secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history: the secret scan looks at all of it
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+      - name: ruff
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: pyright
+        run: uv run pyright
+      - name: secret scan
+        # The pre-commit hook only protects people who ran `git config core.hooksPath`.
+        # This protects the repository. A real key once reached a committed .env.example.
+        run: |
+          PAT='sk-proj-[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY'
+          if git grep -aIE "$PAT" -- . ; then echo "::error::secret-shaped string in the tree"; exit 1; fi
+          if git log -p --all | grep -aqE "$PAT"; then echo "::error::secret-shaped string in history"; exit 1; fi
+          echo "clean"
+      - name: no hardcoded versions
+        # 0.1.0 shipped telling every MCP host it was 0.0.0.
+        run: |
+          if grep -rniE '\bversion\b.{0,4}[:=].{0,4}"[0-9]+\.[0-9]+\.[0-9]+"' src/ | grep -v '__init__.py'; then
+            echo "::error::hardcoded version outside __init__.py"; exit 1
+          fi
+          echo "single-sourced"
+
+  test:
+    name: tests · py${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false   # knowing 3.11 also fails is worth the extra minute
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras --python ${{ matrix.python }}
+      - name: pytest
+        run: uv run --python ${{ matrix.python }} pytest
+      - name: conformance
+        # ADR-0002: the Protocol is a signature, this is the contract. Only the
+        # implemented target is gated -- anthropic is expected to fail until it exists.
+        run: uv run --python ${{ matrix.python }} tapeloop conformance --target openai
+
+  package:
+    name: build · install · dependency floor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: build
+        run: |
+          uv build
+          uv run --with twine twine check dist/*
+      - name: the wheel contains nothing it should not
+        run: |
+          uv run python - <<'PY'
+          import glob, zipfile, sys
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          bad = [n for n in names for p in ("tests/", ".env", "LOGBOOK", "evals/") if p in n]
+          print(f"{len(names)} entries")
+          if bad:
+              sys.exit(f"::error::wheel contains {bad}")
+          PY
+      - name: install the built wheel in a clean env and run the suite
+        # Not `uv run` against the source tree. An entry point can be broken in ways
+        # a source-tree run hides.
+        run: |
+          uv venv --python 3.11 /tmp/clean
+          uv pip install --python /tmp/clean/bin/python dist/*.whl pytest
+          /tmp/clean/bin/tapeloop --help > /dev/null
+          PYTHONPATH=tests /tmp/clean/bin/python -m pytest tests -q
+      - name: the declared dependency floor is actually installable
+        # `openai>=1.60` was declared for six milestones and never worked: `omit` and
+        # ChatCompletionToolUnionParam do not exist before 2.0. Local runs always used
+        # the latest version, so nothing caught it.
+        run: |
+          FLOOR=$(uv run python -c "
+          import re, tomllib
+          deps = tomllib.load(open('pyproject.toml','rb'))['project']['dependencies']
+          print(next(d.replace('>=','==') for d in deps if d.startswith('openai')))")
+          echo "pinning $FLOOR"
+          uv venv --python 3.12 /tmp/floor
+          uv pip install --python /tmp/floor/bin/python dist/*.whl "$FLOOR" pytest
+          PYTHONPATH=tests /tmp/floor/bin/python -m pytest tests -q
+
+  sandbox:
+    name: container escape (live)
+    runs-on: ubuntu-latest   # has a Docker daemon; macOS runners do not
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+      - name: pull the sandbox image
+        run: docker pull python:3.12-slim
+      - name: adversarial isolation checks
+        # These assert what a container can actually reach, not that the right flags
+        # were passed. SECURITY.md's claims rest on them.
+        run: uv run pytest -m live tests/test_container_escape.py -q
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras
+      - run: uv run --with pip-audit pip-audit --progress-spinner off
