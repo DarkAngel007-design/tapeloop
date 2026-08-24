@@ -3,7 +3,7 @@
 Named failure modes, so a failing run can be classified rather than described.
 
 **Frequencies are from the 2026-08-24 baseline**: `gpt-5.4-mini-2026-03-17`, 21 tasks × 5 seeds,
-105 runs. See [`../../evals/baseline-2026-08-24/results.md`](../../evals/baseline-2026-08-24/results.md).
+105 runs. See [`../../evals/baseline-2026-08-24/results.md`](https://github.com/DarkAngel007-design/tapeloop/blob/main/evals/baseline-2026-08-24/results.md).
 Modes with no observed instances are kept — a mode you have not yet seen is not a mode that cannot
 happen, and the detection column is what lets you count it when it does.
 

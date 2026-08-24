@@ -20,10 +20,10 @@ source of truth or contains something that lives nowhere else.
 
 | Question | File |
 |----------|------|
-| What is this project, for a user? | [`README.md`](../../README.md) |
-| What is built and what is next? | [`ROADMAP.md`](../../ROADMAP.md) |
-| Why was this decided this way? | [`docs/adr/`](../adr/) — numbered, immutable |
-| What are the rules for changing code? | [`AGENTS.md`](../../AGENTS.md) |
+| What is this project, for a user? | [`README.md`](https://github.com/DarkAngel007-design/tapeloop/blob/main/README.md) |
+| What is built and what is next? | [`ROADMAP.md`](https://github.com/DarkAngel007-design/tapeloop/blob/main/ROADMAP.md) |
+| Why was this decided this way? | [`docs/adr/`](../adr/README.md) — numbered, immutable |
+| What are the rules for changing code? | [`AGENTS.md`](https://github.com/DarkAngel007-design/tapeloop/blob/main/AGENTS.md) |
 | How do providers differ? | [`docs/explanation/provider-differences.md`](../explanation/provider-differences.md) |
 
 ## The one thing that does not travel

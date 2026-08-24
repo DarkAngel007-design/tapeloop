@@ -39,6 +39,11 @@ dev = [
   "ruff>=0.8",
   "pyright>=1.1.390",
 ]
+docs = [
+  "mkdocs-material>=9.5",
+  # API reference generated from docstrings, so it cannot drift from the code.
+  "mkdocstrings[python]>=0.27",
+]
 
 [build-system]
 requires = ["hatchling"]

@@ -1,0 +1,91 @@
+site_name: tapeloop
+site_description: An agent runtime that records every step, so any run can be replayed, forked, and diffed.
+site_url: https://DarkAngel007-design.github.io/tapeloop/
+repo_url: https://github.com/DarkAngel007-design/tapeloop
+repo_name: DarkAngel007-design/tapeloop
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: {icon: material/weather-night, name: dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: {icon: material/weather-sunny, name: light mode}
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            members_order: source
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight: {anchor_linenums: true}
+  - toc: {permalink: true}
+  - tables
+
+# Diátaxis, kept strictly separate: learning, doing, looking up, understanding.
+# Mixing the four is the commonest reason open-source docs fail.
+nav:
+  - Home: index.md
+  - Tutorials:
+      - tutorials/README.md
+      - Your first agent: tutorials/01-your-first-agent.md
+      - Writing a tool: tutorials/02-writing-a-tool.md
+      - Recording and replaying: tutorials/03-recording-and-replaying.md
+      - Forking to A/B a prompt: tutorials/04-forking-to-ab-a-prompt.md
+  - How-to:
+      - how-to/README.md
+      - Sandbox an agent: how-to/sandbox-an-agent.md
+      - Build a tool pack: how-to/build-a-tool-pack.md
+      - Resume a stopped run: how-to/resume-a-stopped-run.md
+      - Use tools over MCP: how-to/use-mcp.md
+      - Run the eval suite: how-to/run-the-eval-suite.md
+      - Add a provider: how-to/add-a-provider.md
+  - Reference:
+      - reference/README.md
+      - CLI: reference/cli.md
+      - Effect classes: reference/effect-classes.md
+      - Transcript format: reference/transcript-format.md
+      - API: reference/api.md
+  - Explanation:
+      - Architecture: explanation/architecture.md
+      - Replay is not resume: explanation/replay-vs-resume.md
+      - Determinism: explanation/determinism.md
+      - Provider differences: explanation/provider-differences.md
+      - Threat model: explanation/threat-model.md
+      - Why not a framework: explanation/why-not-a-framework.md
+  - Evaluation:
+      - evals/README.md
+      - Methodology: evals/methodology.md
+      - Failure taxonomy: evals/failure-taxonomy.md
+      - M7 delta: evals/m7-delta.md
+      - M8 orchestration: evals/m8-orchestration.md
+      - Machinery check: evals/machinery-check.md
+  - Decisions: adr/README.md
+  - Project:
+      - project/README.md
+      - Charter: project/charter.md
+      - State: project/state.md
+      - Glossary: project/glossary.md
+      - Handoff: project/handoff.md
+      - Release checklist: project/release-checklist.md
+
+strict: true

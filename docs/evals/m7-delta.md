@@ -1,7 +1,7 @@
 # M7 delta — what context management changed
 
-Comparing [`evals/baseline-2026-08-24/`](../../evals/baseline-2026-08-24/) (M6, no context
-management) against [`evals/m7-2026-08-24/`](../../evals/m7-2026-08-24/) (M7, budget enabled).
+Comparing [`evals/baseline-2026-08-24/`](https://github.com/DarkAngel007-design/tapeloop/tree/main/evals/baseline-2026-08-24/) (M6, no context
+management) against [`evals/m7-2026-08-24/`](https://github.com/DarkAngel007-design/tapeloop/tree/main/evals/m7-2026-08-24/) (M7, budget enabled).
 Same model, same seeds, same suite plus one new task.
 
 ## The claim

@@ -6,12 +6,12 @@ An agent runtime that records every step, so any run can be replayed, forked, an
 
 These docs follow [Diátaxis](https://diataxis.fr) — four modes, kept strictly separate:
 
-- **[Tutorials](tutorials/)** — learning-oriented. Follow along, end to end.
-- **[How-to guides](how-to/)** — task-oriented. You already know why; here is how.
-- **[Reference](reference/)** — information-oriented. Dry, complete, no narrative.
-- **[Explanation](explanation/)** — understanding-oriented. Why it is built this way.
+- **[Tutorials](tutorials/README.md)** — learning-oriented. Follow along, end to end.
+- **[How-to guides](how-to/README.md)** — task-oriented. You already know why; here is how.
+- **[Reference](reference/README.md)** — information-oriented. Dry, complete, no narrative.
+- **[Explanation](explanation/architecture.md)** — understanding-oriented. Why it is built this way.
 
-Decisions live in **[ADRs](adr/)**, numbered and immutable.
+Decisions live in **[ADRs](adr/README.md)**, numbered and immutable.
 
 ## Start here
 

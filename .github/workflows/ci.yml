@@ -131,6 +131,43 @@ jobs:
         # were passed. SECURITY.md's claims rest on them.
         run: uv run pytest -m live tests/test_container_escape.py -q
 
+  docs:
+    name: docs build · examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-extras --all-groups
+      - name: every documented example actually runs
+        # The recurring failure here has been prose claiming more than the code does.
+        # Examples are that hazard in a more embarrassing form: a reader pastes them.
+        run: uv run pytest tests/test_docs.py -q
+      - name: mkdocs --strict
+        # Catches a class my own link checker cannot: links that resolve on disk but
+        # 404 on the published site.
+        run: uv run mkdocs build --strict
+      - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: site
+
+  pages:
+    name: publish docs
+    needs: docs
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
   audit:
     name: dependency audit
     runs-on: ubuntu-latest
