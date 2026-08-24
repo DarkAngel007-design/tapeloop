@@ -37,7 +37,7 @@ to claim protection it did not have.
 | Backend | Protects against | Does not protect against |
 |---------|------------------|--------------------------|
 | `SubprocessExecutor` (default) | Nothing. Timeouts and a working directory only. | Anything at all. |
-| `DockerExecutor` | Untrusted input: no network, no capabilities, no new privileges, read-only root, workspace is the sole writable mount, `noexec` tmp. | A container escape, a malicious image, a kernel bug. |
+| `DockerExecutor` | Untrusted input: no network, no capabilities, no new privileges, read-only root, workspace is the sole writable mount, `noexec` tmp. **Verified by 14 adversarial tests against a real daemon** (`pytest -m live`). | A container escape, a malicious image, a kernel bug. |
 | gVisor / microVM (not built) | The above plus kernel attack surface. | — |
 
 **The default provides no isolation.** That is deliberate rather than sloppy: a container that

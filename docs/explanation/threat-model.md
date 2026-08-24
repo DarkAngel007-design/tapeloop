@@ -49,7 +49,17 @@ on a policy is a claim about a *configured* harness, not a default one. Both are
 **`PythonBehaviour` executes agent-written code in-process.** Eval-suite only, never the agent
 loop, but it is arbitrary code execution and routing it through the `Executor` seam is not done.
 
-**Container escape is not addressed.** That is the next rung, and it is not built.
+**Container escape is not prevented, but the obvious routes are now tested.**
+`tests/test_container_escape.py` runs 14 adversarial checks against a real daemon: host
+filesystem unreachable, read-only root, `noexec` tmp, no DNS and no outbound TCP, no routable
+interface, empty effective capability set, `NoNewPrivs`, **no Docker socket anywhere** (the
+classic escape), host PIDs invisible, memory cap enforced under real page residency, timeout
+kill, and `--rm` leaving nothing behind. Plus a positive control, because isolation that breaks
+the feature is a broken feature rather than security.
+
+That tests the configuration, not the kernel. A container escape through a kernel or runtime bug
+is still unaddressed; the next rung is gVisor or a microVM and it is not built. Run these with
+`uv run pytest -m live`.
 
 **Tapes are not sanitized.** A tape holds what the tools read. If that included a secret, so does
 the tape.
