@@ -6,6 +6,26 @@ Versioning is [semver](https://semver.org/); pre-1.0 means anything may move.
 ## [Unreleased]
 
 ### Added
+- **`OllamaClient`** — a local, free provider. It is thin by nature, and was built as a
+  stress test of the provider seam rather than because anyone needed it.
+
+### Fixed
+- **`provider_id` was hardcoded to `"openai"` no matter where the client pointed.** It is
+  hashed into every step key precisely so two backends cannot share a cache entry
+  (ADR-0004), so setting `OPENAI_BASE_URL` to a local Ollama produced the *same key* as a
+  run against OpenAI. A false cache hit returns an answer that was never given. Now derived
+  from the base URL.
+- **`translate` was written at M2 and never called.** Every retry test raised `ProviderError`
+  directly, so the taxonomy, the exponential backoff and the `Retry-After` handling were all
+  exercised on a path real code never took — an SDK exception propagated straight past
+  `RetryPolicy`, which only catches `ProviderError`. **The retry chain had never fired against
+  a real provider in two releases.** Found by pointing the runtime at a local Ollama and
+  watching a raw `openai.InternalServerError` come out the top of the stack.
+- A bare `429` or `401`/`403` from an OpenAI-compatible server that does not use the SDK's
+  exception subclasses is now classified by status code, rather than read as a bad request
+  and given up on.
+
+### Added
 - **`tapeloop resume`** — continue a stopped run, for real. ADR-0006 has described this since M4
   and nothing implemented it. Unlike `replay` and `fork`, resume serves **nothing** from cache:
   every step it takes is a real call with real effects.

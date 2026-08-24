@@ -11,8 +11,10 @@ divergences #1, #2 and #3 are absorbed.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Sequence
-from typing import Any, cast
+from collections.abc import Generator, Iterable, Iterator, Sequence
+from contextlib import contextmanager
+from typing import Any, TypeVar, cast
+from urllib.parse import urlparse
 
 from openai import OpenAI, Stream, omit
 from openai.types.chat import (
@@ -48,7 +50,67 @@ from tapeloop.providers.stream import (
 from tapeloop.record.codec import order_results
 from tapeloop.tools.registry import ToolSpec
 
+T = TypeVar("T")
+
 PROVIDER_ID = "openai"
+
+
+OFFICIAL_HOSTS = frozenset({"api.openai.com"})
+
+
+def provider_id_for(client: OpenAI) -> str:
+    """Derive a provider id from where the client actually points.
+
+    This matters more than it looks. `provider_id` goes into the step key (ADR-0004)
+    precisely so that two backends cannot share a cache entry — but until this existed,
+    setting OPENAI_BASE_URL to a local Ollama left the id as "openai", and a run against
+    `llama3.2` on Ollama produced the *same key* as one against a model of that name at
+    OpenAI. A false cache hit returns an answer that was never given.
+
+    The trade: `localhost` and `127.0.0.1` for the same daemon yield different ids and
+    therefore different keys. That is a spurious miss, which costs a call. The
+    alternative is a false hit, which costs correctness — so the miss is the right side
+    to err on.
+    """
+    base = str(getattr(client, "base_url", "") or "")
+    host = urlparse(base).hostname or ""
+    if not host or host in OFFICIAL_HOSTS:
+        return PROVIDER_ID
+    port = urlparse(base).port
+    return f"openai-compatible:{host}{f':{port}' if port else ''}"
+
+
+@contextmanager
+def _translated() -> Generator[None]:
+    """Turn SDK exceptions into the taxonomy the retry policy understands.
+
+    This wrapper is why the taxonomy exists at all, and for two releases it was
+    missing: `translate` was written at M2 and never called, so every SDK exception
+    propagated straight past `RetryPolicy` -- which only catches `ProviderError`. The
+    retry chain looked correct, was covered by tests, and had never once fired against
+    a real provider, because the tests raised `ProviderError` directly.
+
+    Found by pointing the runtime at a local Ollama and watching a raw
+    `openai.InternalServerError` come out the top of the stack.
+    """
+    try:
+        yield
+    except ProviderError:
+        raise
+    except Exception as e:
+        raise translate(e) from e
+
+
+def _translated_iter(stream: Iterable[T]) -> Iterator[T]:
+    """The same, for errors raised *while consuming* a stream rather than opening it."""
+    iterator = iter(stream)
+    while True:
+        with _translated():
+            try:
+                item = next(iterator)
+            except StopIteration:
+                return
+        yield item
 
 
 def translate(exc: Exception) -> ProviderError:
@@ -69,6 +131,13 @@ def translate(exc: Exception) -> ProviderError:
     if isinstance(exc, openai.APIStatusError):
         if exc.status_code >= 500:
             return ProviderUnavailable(str(exc), retry_after=_retry_after(exc))
+        if exc.status_code == 429:
+            # The SDK normally raises RateLimitError, caught above. An
+            # OpenAI-compatible server that returns a bare 429 must not be
+            # misread as a bad request and given up on.
+            return RateLimited(str(exc), retry_after=_retry_after(exc))
+        if exc.status_code in (401, 403):
+            return AuthenticationFailed(str(exc))
         return RequestInvalid(str(exc))
     return RequestInvalid(str(exc))
 
@@ -166,9 +235,9 @@ def render_tools(tools: Sequence[ToolSpec]) -> list[dict[str, Any]]:
 class OpenAIClient:
     """A ModelClient over any OpenAI-compatible Chat Completions endpoint."""
 
-    def __init__(self, client: OpenAI | None = None, *, provider_id: str = PROVIDER_ID) -> None:
+    def __init__(self, client: OpenAI | None = None, *, provider_id: str | None = None) -> None:
         self._client = client or OpenAI()
-        self._provider_id = provider_id
+        self._provider_id = provider_id or provider_id_for(self._client)
 
     @property
     def provider_id(self) -> str:
@@ -182,12 +251,13 @@ class OpenAIClient:
         tools: Sequence[ToolSpec] = (),
         max_tokens: int = 4096,
     ) -> ModelResponse:
-        raw: ChatCompletion = self._client.chat.completions.create(
-            model=model,
-            messages=wire_messages(messages),
-            tools=wire_tools(tools) or omit,
-            max_completion_tokens=max_tokens,
-        )
+        with _translated():
+            raw: ChatCompletion = self._client.chat.completions.create(
+                model=model,
+                messages=wire_messages(messages),
+                tools=wire_tools(tools) or omit,
+                max_completion_tokens=max_tokens,
+            )
         return self._parse(raw)
 
     def _parse(self, raw: ChatCompletion) -> ModelResponse:
@@ -251,18 +321,19 @@ class OpenAIClient:
         finish: str | None = None
         usage = Usage()
 
-        raw_stream: Stream[ChatCompletionChunk] = self._client.chat.completions.create(
-            model=model,
-            messages=wire_messages(messages),
-            tools=wire_tools(tools) or omit,
-            max_completion_tokens=max_tokens,
-            stream=True,
-            # Without this the final chunk carries no usage and every streamed run
-            # reports zero tokens -- which silently breaks cost accounting at M9.
-            stream_options={"include_usage": True},
-        )
+        with _translated():
+            raw_stream: Stream[ChatCompletionChunk] = self._client.chat.completions.create(
+                model=model,
+                messages=wire_messages(messages),
+                tools=wire_tools(tools) or omit,
+                max_completion_tokens=max_tokens,
+                stream=True,
+                # Without this the final chunk carries no usage and every streamed
+                # run reports zero tokens -- silently breaking cost accounting at M9.
+                stream_options={"include_usage": True},
+            )
 
-        for chunk in raw_stream:
+        for chunk in _translated_iter(raw_stream):
             if chunk.usage:
                 cached = getattr(
                     getattr(chunk.usage, "prompt_tokens_details", None), "cached_tokens", 0

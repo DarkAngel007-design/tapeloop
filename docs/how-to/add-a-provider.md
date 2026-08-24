@@ -52,6 +52,37 @@ the *set*; each adapter lays it out its own way.
 `END_TURN`. A future stop reason that looks like a finished turn is a run that stops
 silently and wrongly.
 
+## Ollama, and why a third adapter was worth building
+
+Ollama serves an OpenAI-compatible endpoint, so `OllamaClient` is a handful of lines. It
+was built anyway, as a **free stress test of the seam** — an adapter reaching the same
+code by a different route, available to anyone with a laptop, without waiting for a
+second vendor's credentials.
+
+It found two bugs in an adapter that had shipped twice:
+
+- **`provider_id` was hardcoded to `"openai"` regardless of where the client pointed.**
+  It is hashed into every step key precisely so two backends cannot share a cache entry
+  (ADR-0004) — so a run against a local model produced the *same key* as one against a
+  model of that name at OpenAI. A false cache hit returns an answer that was never given.
+- **`translate` was never called.** The typed error taxonomy, the backoff and the
+  `Retry-After` handling had all been covered by tests that raised `ProviderError`
+  directly, while real SDK exceptions propagated straight past `RetryPolicy`. The retry
+  chain had never once fired against a real provider.
+
+Neither was findable by conformance, because both were about how the adapter behaves
+when it is actually wired to something. That is the argument for a cheap third adapter:
+not that anyone needs it, but that reaching the code twice by different routes finds
+what one route cannot.
+
+```python
+from tapeloop.providers.ollama import OllamaClient
+
+client = OllamaClient()  # http://localhost:11434/v1
+print(client.provider_id)  # ollama — distinct, so keys cannot collide
+assert client.provider_id == "ollama"
+```
+
 ## Writing it
 
 Add your target to `BUILTIN_TARGETS`, run the suite, and fix what fails. The Anthropic

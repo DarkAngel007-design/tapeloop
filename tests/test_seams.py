@@ -213,3 +213,44 @@ def test_sdk_exceptions_map_to_the_taxonomy() -> None:
     assert translate(ValueError("who knows")).retryable is False
     assert RateLimited("x").retryable is True
     assert AuthenticationFailed("x").retryable is False
+
+
+def test_sdk_exceptions_reach_the_retry_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`translate` was written at M2 and never called, for two releases.
+
+    Every retry test raised `ProviderError` directly, so the taxonomy, the backoff and
+    the Retry-After handling were all exercised on a path real code never took: an SDK
+    exception propagated straight past `RetryPolicy`, which only catches `ProviderError`.
+    Found by pointing the runtime at a local Ollama and watching a raw
+    `openai.InternalServerError` come out the top of the stack.
+    """
+    import httpx2
+    import openai
+
+    from tapeloop.core.errors import ProviderUnavailable, RateLimited
+    from tapeloop.providers.openai import OpenAIClient
+
+    def raiser(status: int) -> object:
+        response = httpx2.Response(status, request=httpx2.Request("POST", "https://x"))
+
+        class Boom:
+            class chat:
+                class completions:
+                    @staticmethod
+                    def create(**_kw: object) -> object:
+                        raise openai.APIStatusError("boom", response=response, body=None)
+
+        return Boom()
+
+    for status, expected in ((500, ProviderUnavailable), (503, ProviderUnavailable)):
+        client = OpenAIClient(client=raiser(status), provider_id="test")  # pyright: ignore[reportArgumentType]
+        with pytest.raises(expected):
+            client.complete(model="m", messages=[user("hi")])
+
+    # A bare 429 from an OpenAI-compatible server, not the SDK's RateLimitError
+    # subclass, must still be recognised — otherwise it reads as a bad request and
+    # the run gives up on something that would have succeeded.
+    rate = OpenAIClient(client=raiser(429), provider_id="test")  # pyright: ignore[reportArgumentType]
+    with pytest.raises(RateLimited) as caught:
+        rate.complete(model="m", messages=[user("hi")])
+    assert caught.value.retryable, "a 429 must be retryable or the whole policy is inert"

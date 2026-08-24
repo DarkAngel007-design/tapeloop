@@ -157,4 +157,37 @@ def anthropic_target() -> ConformanceTarget:
     )
 
 
-BUILTIN_TARGETS = {"openai": openai_target, "anthropic": anthropic_target}
+def ollama_target() -> ConformanceTarget:
+    """Ollama speaks the OpenAI wire format, so it shares the renderer and parser.
+
+    Registering it anyway is not ceremony: it asserts that an adapter reaching the same
+    code by a different route still satisfies the contract, and that its identity is
+    distinct — which is exactly the property whose absence caused a step-key collision.
+    """
+    from tapeloop.providers.ollama import PROVIDER_ID, OllamaClient
+    from tapeloop.providers.openai import render_messages, render_tools
+
+    client = OllamaClient.__new__(OllamaClient)
+    client._provider_id = PROVIDER_ID  # pyright: ignore[reportPrivateUsage]  # no daemon needed
+
+    base = openai_target()
+    return ConformanceTarget(
+        name="ollama (openai-compatible)",
+        provider_id=PROVIDER_ID,
+        render_messages=render_messages,
+        render_tools=render_tools,
+        parse=lambda raw: client._parse(raw),  # pyright: ignore[reportPrivateUsage]
+        build_wire=base.build_wire,
+        # Same vocabulary: it is the same wire format.
+        stop_reasons=base.stop_reasons,
+        count_tokens=lambda messages: client.count_tokens(
+            model="conformance-model", messages=messages
+        ),
+    )
+
+
+BUILTIN_TARGETS = {
+    "openai": openai_target,
+    "ollama": ollama_target,
+    "anthropic": anthropic_target,
+}
