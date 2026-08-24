@@ -4,7 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/tapeloop)](https://pypi.org/project/tapeloop/)
 [![Python](https://img.shields.io/pypi/pyversions/tapeloop)](https://pypi.org/project/tapeloop/)
 
-**[Documentation](https://DarkAngel007-design.github.io/tapeloop/)** · [Tutorials](https://DarkAngel007-design.github.io/tapeloop/tutorials/01-your-first-agent/) · [Decisions](https://DarkAngel007-design.github.io/tapeloop/adr/README/)
+**[Documentation](https://DarkAngel007-design.github.io/tapeloop/)** · [Tutorials](https://DarkAngel007-design.github.io/tapeloop/tutorials/01-your-first-agent/) · [Decisions](https://DarkAngel007-design.github.io/tapeloop/adr/)
 
 **An agent runtime that records every step, so any run can be replayed, forked, and diffed.**
 
