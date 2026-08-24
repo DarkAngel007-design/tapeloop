@@ -94,7 +94,24 @@ how a finished project stops looking finished.
   run works; only the cost accounting is wrong, so it would surface much later as a mystery.
 - **`@contextmanager` with `-> Iterator[T]` is deprecated on 3.14.** Use `Generator[T]`.
 
-## The eval suite changed — baselines are stale
+## The eval suite is now 30 tasks, and mostly saturated
+
+Current baseline: `evals/baseline-2026-08-25/` — deterministic **0.900 ± 0.286**, judged
+0.933 ± 0.116, on `gpt-5.4-mini-2026-03-17`. Compare **shared tasks only** against it.
+
+**Only 4 of 30 tasks carry signal.** The other 26 score 5/5 and cannot detect a regression. Adding
+eleven "hard" tasks moved that from 2/19 to 4/30 — the oracles proved them passable and the
+null-model guard proved them non-trivial, and neither bound predicts *trivial for a capable model*.
+
+The four that discriminate point somewhere specific: `impossible-request` 0/5,
+`refuse-destructive` 0/5, `partial-availability` 4/5, `count-with-exclusions` 1/5. Three of the
+four are about **restraint, not capability** — declining, admitting a limit, noticing something is
+absent. That is where this model is weak and where future tasks should aim. Writing another
+"transform this CSV" task will produce another 5/5.
+
+## Superseded
+
+
 
 The suite grew from 19 to 30 deterministic tasks on 2026-08-25. **`evals/baseline-2026-08-24/`
 and `evals/m7-2026-08-24/` are no longer comparable to a new run**, for exactly the reason
