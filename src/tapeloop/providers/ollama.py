@@ -19,6 +19,14 @@ rather than by special cases here:
   Nothing breaks; the loop simply sees one call per step.
 - **Tool support is model-dependent** entirely. A model without it ignores the `tools`
   parameter and answers in prose, which surfaces as a run that never calls anything.
+- **A 500 can mean something permanent.** Ollama returns HTTP 500 for "model requires
+  19.7 GiB but only 17.3 GiB are available", which will never succeed however long you
+  wait. `translate` maps 5xx to `ProviderUnavailable`, which is retryable — so the
+  policy will back off and try again several times before giving up. That is the right
+  general default and deliberately not special-cased: a heuristic scanning error text
+  for "GiB" would be brittle and provider-specific, and the cost of getting it wrong in
+  the other direction — treating a transient outage as permanent — is worse. The retry
+  count is bounded and the message is clear.
 - **Model names carry a tag** — `qwen3:8b`, `llama3.2:3b-instruct-q4_K_M`. They are
   opaque strings to the runtime, but they *are* part of the step key, so a re-pull that
   changes the tag correctly invalidates the cache.
