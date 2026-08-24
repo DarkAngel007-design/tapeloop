@@ -8,7 +8,7 @@ four conditions in ADR-0018.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -97,6 +97,35 @@ class PythonBehaviour:
         return Grade(
             passed=ok, score=1.0 if ok else 0.0, reason="" if ok else f"{self.check} false"
         )
+
+
+@dataclass(slots=True)
+class FileSatisfies:
+    """Assert an arbitrary property of a file's text.
+
+    `FileContains` answers "is this substring present", which is the wrong question
+    surprisingly often: it cannot express "exactly once", "nothing but this", or "these
+    two facts and no third". Tasks about idempotency, precision and negative space all
+    need a predicate rather than a needle.
+    """
+
+    path: str
+    predicate: Callable[[str], bool]
+    because: str = "predicate false"
+    workspace: Path | None = None
+
+    def grade(self, *, expected: str, actual: str) -> Grade:
+        if self.workspace is None:
+            return Grade(passed=False, reason="grader was not bound to a workspace")
+        target = self.workspace / self.path
+        if not target.exists():
+            return Grade(passed=False, reason=f"{self.path} was not created")
+        text = target.read_text(encoding="utf-8", errors="replace")
+        try:
+            ok = bool(self.predicate(text))
+        except Exception as e:
+            return Grade(passed=False, reason=f"{type(e).__name__}: {e}")
+        return Grade(passed=ok, score=1.0 if ok else 0.0, reason="" if ok else self.because)
 
 
 @dataclass(slots=True)
@@ -222,6 +251,7 @@ __all__ = [
     "JUDGE_PROMPT_VERSION",
     "Contains",
     "FileContains",
+    "FileSatisfies",
     "Judgment",
     "LlmJudge",
     "NoFileChanged",
