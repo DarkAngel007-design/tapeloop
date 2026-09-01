@@ -148,7 +148,7 @@ jobs:
         # Catches a class my own link checker cannot: links that resolve on disk but
         # 404 on the published site.
         run: uv run mkdocs build --strict
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.ref == 'refs/heads/main'
         with:
           path: site
